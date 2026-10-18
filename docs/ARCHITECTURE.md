@@ -115,6 +115,8 @@ Crossings: async FIFOs for sample, dump and playback streams. Control words are 
 | XDMA, FIFOs, timebase, collector, raw packer | ~30k (est.) | ~40k (est.) | ~100 (est.) | assumption |
 | **Total** | **~51%** | **~20%** | **~23%** | Leaves room for BOC, secondary codes and VE/VL taps (+~25%/channel, estimate) |
 
+**Update (M1, full `bd_core` incl. register files, collector, timebase; Yosys):** 8 → 16 channels adds ~910 LUT and ~970 FF per channel (16 channels: 16.2k LUT, 16.6k FF). Extrapolated to 192: **~176k LUT (41%), ~187k FF (22%)**. FFs are above the per-channel estimate because each channel carries its own shadow/load register file.
+
 Per-channel savings available if needed: share dump output registers across channels through the collector (~30% of channel FFs), and replace triple-ported code memory with a 3-chip sliding window over one BRAM port.
 
 ### Throughput
@@ -137,7 +139,10 @@ The channel datapath has at most a 34-bit add and one LUT-RAM or BRAM read per s
 - Language: C++17 for the real-time daemon; Python for tools, the reference model and analysis.
 - Process: one acquisition thread pool, one tracking thread per 64 channels, one PVT/RTK thread.
 - Interfaces: XDMA character devices (`/dev/xdma0_c2h_0` samples, `_c2h_1` dumps, `_h2c_0` playback, `_user` registers).
-- Every algorithm in C++ has a Python twin in `model/`, and the two are cross-checked on the same recorded files.
+- Every algorithm in C++ has a Python twin in `model/`, and the two are cross-checked on the same inputs.
+  - M1 status: the record parser and the tracking loop exist in C++ (`sw/`), and the loop is bit-identical to Python.
+  - Bit-identity rules: scalar libm math only, `sqrt(i²+q²)` instead of `hypot`, `-ffp-contract=off`.
+- Register map and record format: `docs/REGISTERS.md`.
 
 ## 8. Path to ≥ 336 channels and the ASIC (not this phase)
 

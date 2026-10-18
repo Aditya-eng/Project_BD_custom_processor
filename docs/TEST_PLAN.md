@@ -11,7 +11,11 @@ Every test states its evidence level. A result is never promoted: simulation doe
 | T0.3 | `gps_ca_gen.sv` equals the model for all 32 PRNs | **pass** (`tb/test_rtl.py`) |
 | T0.4 | `track_channel.sv` equals the model: random samples/FCWs/spacing, 15% sample bubbles, tics, a 37-chip memory code, two mid-stream reloads; plus a simulated GPS stream | **pass** for seeds 1–5 |
 | T0.5 | Testbench sensitivity: injected RTL bugs (Q sign, late-tap wrap, epoch latch) must fail T0.4 | **pass** (all 3 mutations caught) |
-| T0.6 | Verilator `-Wall` lint clean; generated LUT include up to date | **pass** |
+| T0.6 | Verilator `-Wall` lint clean (`bd_core` at NCH = 4 and 192); generated LUT include up to date | **pass** |
+| T0.7 | `bd_core` registers, timebase, PPS waveform, event stamping | **pass** (`tb/test_core.py`) |
+| T0.8 | `bd_core` 4-channel bit-exact vs model: paths, short and C/A codes, mid-stream retunes, 10% sample bubbles, 20% record back-pressure, tics → every DUMP/MEAS record identical; no overrun | **pass**; 3/3 injected bugs caught |
+| T0.9 | LNAV: parity round trip and detection of every single-bit error; subframe structure; ephemeris round trip within ½ LSB; preamble search in an inverted stream | **pass** (`model/tests/test_lnav.py`); self-consistent only, field layout to be confirmed on live data |
+| T0.10 | C++ host loop equals the Python loop **bit for bit** over 400 replayed epochs (0 and 1 epoch latency); C++ record parser known-answer test | **pass** (`sw/tests`) |
 
 ## T1 — Receiver algorithms on simulated signals (CI)
 
@@ -22,7 +26,7 @@ Every test states its evidence level. A result is never promoted: simulation doe
 | T1.3 Acquisition false-alarm rate on 10,000 noise-only searches (REQ-ACQ-004) | to do |
 | T1.4 C/N0 ramp to find the loss-of-lock threshold (REQ-TRK-003) | to do |
 | T1.5 Every new signal type (BOC, secondary codes, FDMA): same T1.2 battery | to do |
-| T1.6 PVT from simulated multi-satellite scenario with known position and clock | to do |
+| T1.6 IF → acquisition (32-PRN search) → tracking → LNAV TLM/HOW sync → single-epoch PVT, 10 satellites, static receiver | **pass (simulated)**: all visible PRNs detected, none false; transmit-time errors < 10 m; 3D error 3.7 m, time error 5 ns (thresholds 15 m / 50 ns). Ephemeris taken from the scenario; time from the decoded HOW |
 
 ## T2 — FPGA on the VC709 without RF (playback)
 

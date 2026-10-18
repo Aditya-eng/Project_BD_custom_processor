@@ -5,3 +5,4 @@ tb/results.xml
 *.vcd
 *.fst
 tb/*.result.xml
+sw/build/
