@@ -1,0 +1,7 @@
+__pycache__/
+.pytest_cache/
+tb/sim_build/
+tb/results.xml
+*.vcd
+*.fst
+tb/*.result.xml
