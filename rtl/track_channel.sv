@@ -22,6 +22,7 @@ module track_channel #(
     input  wire        [31:0]       code_fcw,       // must be < 2^31
     input  wire        [31:0]       half_spacing,   // D, chips * 2^32
     input  wire        [CODE_AW:0]  code_len,
+    input  wire                     boc,            // BOC(1,1): XOR taps with their subcarrier phase
 
     // Load: sets NCO state, clears accumulators, epoch counter and pipeline
     input  wire                     load,
@@ -69,6 +70,11 @@ module track_channel #(
 
     wire        e_adv   = code_frac > ~half_spacing;   // carry of code_frac + D
     wire        l_dec   = code_frac < half_spacing;
+    // Sine-phased BOC(1,1): the subcarrier is the MSB of each tap's own fractional phase.
+    /* verilator lint_off UNUSEDSIGNAL */   // only bit 31 is the subcarrier
+    wire [31:0] e_frac  = code_frac + half_spacing;
+    wire [31:0] l_frac  = code_frac - half_spacing;
+    /* verilator lint_on UNUSEDSIGNAL */
     wire [CODE_AW:0] chip_p1 = {1'b0, chip_idx} + 1'b1;
     wire [CODE_AW-1:0] e_idx = !e_adv ? chip_idx
                                : (chip_p1 == code_len ? {CODE_AW{1'b0}} : chip_p1[CODE_AW-1:0]);
@@ -106,9 +112,9 @@ module track_channel #(
             if (sample_valid) begin
                 b_i <= sample * lcos;
                 b_q <= -(sample * lsin);
-                b_e <= code_mem[e_idx];
-                b_p <= code_mem[chip_idx];
-                b_l <= code_mem[l_idx];
+                b_e <= code_mem[e_idx]    ^ (boc & e_frac[31]);
+                b_p <= code_mem[chip_idx] ^ (boc & code_frac[31]);
+                b_l <= code_mem[l_idx]    ^ (boc & l_frac[31]);
 
                 if (tic) begin
                     meas_valid       <= 1'b1;

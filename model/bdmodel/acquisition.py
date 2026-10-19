@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .gps_ca import CA_CHIP_RATE, CA_LEN, ca_code
+from .signals import GPS_L1CA, SignalSpec, replica
 
 
 @dataclass
@@ -17,8 +17,8 @@ class AcqResult:
 
 
 def acquire(samples, prn, fs_hz, f_if_hz, doppler_max_hz=5000.0, doppler_step_hz=250.0,
-            coherent_ms=1, noncoherent=8, threshold=2.5):
-    spc = fs_hz * 1e-3 * coherent_ms           # samples per coherent block
+            coherent_ms=1, noncoherent=8, threshold=2.5, spec: SignalSpec = GPS_L1CA):
+    spc = fs_hz * spec.epoch_s * coherent_ms   # samples per coherent block
     n = int(round(spc))
     need = n * noncoherent
     if len(samples) < need:
@@ -26,9 +26,7 @@ def acquire(samples, prn, fs_hz, f_if_hz, doppler_max_hz=5000.0, doppler_step_hz
     x = np.asarray(samples[:need], dtype=np.float64).reshape(noncoherent, n)
     t = np.arange(n) / fs_hz
 
-    code = 1.0 - 2.0 * ca_code(prn)
-    chip_idx = np.floor(np.arange(n) * CA_CHIP_RATE / fs_hz).astype(np.int64) % CA_LEN
-    code_fft_conj = np.conj(np.fft.fft(code[chip_idx]))
+    code_fft_conj = np.conj(np.fft.fft(replica(spec, prn, n, fs_hz)))
 
     dopplers = np.arange(-doppler_max_hz, doppler_max_hz + doppler_step_hz / 2, doppler_step_hz)
     surface = np.zeros((len(dopplers), n))
@@ -42,7 +40,7 @@ def acquire(samples, prn, fs_hz, f_if_hz, doppler_max_hz=5000.0, doppler_step_hz
 
     di, si = np.unravel_index(np.argmax(surface), surface.shape)
     peak = surface[di, si]
-    spc_chip = fs_hz / CA_CHIP_RATE
+    spc_chip = fs_hz / spec.chip_rate
     excl = int(np.ceil(spc_chip)) + 1
     row = surface[di].copy()
     idx = (np.arange(-excl, excl + 1) + si) % n
@@ -50,5 +48,5 @@ def acquire(samples, prn, fs_hz, f_if_hz, doppler_max_hz=5000.0, doppler_step_hz
     metric = peak / row.max()
     # Correlation peak at lag `si` means the received code is delayed by si
     # samples: the replica must start at chip phase -si samples.
-    code_phase = (-si * CA_CHIP_RATE / fs_hz) % CA_LEN
+    code_phase = (-si * spec.chip_rate / fs_hz) % spec.code_len
     return AcqResult(prn, metric > threshold, float(dopplers[di]), code_phase, int(si), float(metric))
