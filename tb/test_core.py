@@ -22,7 +22,7 @@ NCH = 4
 CH_BASE = 0x1000
 CH_STRIDE = 0x40
 REG = dict(CARR=0x00, CODE=0x04, SPACING=0x08, CODE_LEN=0x0C, PATH=0x10, LD_CARR=0x14,
-           LD_FRAC=0x18, LD_CHIP=0x1C, CMD=0x20, WADDR=0x24, WDATA=0x28)
+           LD_FRAC=0x18, LD_CHIP=0x1C, CMD=0x20, WADDR=0x24, WDATA=0x28, MODE=0x2C)
 
 
 class Core:
@@ -211,6 +211,8 @@ async def channel_bank_bit_exact(dut):
         await c.load_code(ch, bits)
         cf, kf = freq_to_fcw(fc, fe.fs_hz), rate_to_fcw(fr, fe.fs_hz)
         await c.ch_write(ch, "PATH", path)
+        boc = ch == 3                      # channel 3 runs in BOC(1,1) mode
+        await c.ch_write(ch, "MODE", int(boc))
         await c.ch_write(ch, "SPACING", sp)
         await c.ch_write(ch, "CARR", cf)
         await c.ch_write(ch, "CODE", kf)
@@ -218,7 +220,7 @@ async def channel_bank_bit_exact(dut):
         await c.ch_write(ch, "LD_FRAC", 1 << 30)
         await c.ch_write(ch, "LD_CHIP", chip0)
         await c.ch_write(ch, "CMD", 2)
-        m = TrackChannel(bits, carr_fcw=cf, code_fcw=kf, half_spacing=sp)
+        m = TrackChannel(bits, carr_fcw=cf, code_fcw=kf, half_spacing=sp, boc=boc)
         m.load(0, 1 << 30, chip0)
         m.path = path
         chans[ch] = m

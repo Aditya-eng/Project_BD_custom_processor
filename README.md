@@ -22,11 +22,11 @@ Phase 1 runs on a **Xilinx VC709 (Virtex-7 XC7VX690T)**: 192 correlator channels
 | `docs/SCHEDULE.md` | Milestones and time estimate |
 | `docs/RISKS.md` | Dependencies and engineering risks |
 | `docs/LICENSES.md`, `docs/CLEAN_ROOM.md` | Licence policy, third-party register, clean-room rules |
-| `model/bdmodel/` | Python reference: C/A codes, bit-exact correlator, signal simulator, acquisition, tracking, LNAV, ephemeris, geometry scenario, PVT |
+| `model/bdmodel/` | Python reference: C/A and L5 codes, signal specs, bit-exact correlator (incl. BOC(1,1)), simulators, acquisition, tracking, LNAV, ephemeris, geometry scenario, PVT |
 | `rtl/` | SystemVerilog: `bd_core` (top), `channel_bank` (channels + collector), `timebase`, `sample_mux`, `track_channel`, `gps_ca_gen` |
 | `sw/` | C++17 host library: record parser, tracking loop; `bd_loopcheck` replay tool |
 | `tb/` | cocotb testbenches comparing RTL to the model (`test_rtl.py` per block, `test_core.py` integration) |
-| `tools/` | Generators (carrier LUT) |
+| `tools/` | Generators (carrier LUT) and ICD table importers |
 
 ## Running the tests
 

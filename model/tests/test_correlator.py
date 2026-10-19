@@ -7,7 +7,7 @@ from bdmodel.correlator import COS_LUT, M32, SIN_LUT, TrackChannel, wrap_s32
 from bdmodel.gps_ca import ca_code
 
 
-def scalar_reference(code, samples, carr_fcw, code_fcw, D, state, tics=()):
+def scalar_reference(code, samples, carr_fcw, code_fcw, D, state, tics=(), boc=False):
     L = len(code)
     sign = 1 - 2 * code.astype(int)
     cp, cyc, frac, chip, ep = state
@@ -23,9 +23,11 @@ def scalar_reference(code, samples, carr_fcw, code_fcw, D, state, tics=()):
         e = 0 if e == L else e
         late_dec = 1 if frac < D else 0
         l = L - 1 if (late_dec and chip == 0) else chip - late_dec
-        for j, tap in enumerate((e, chip, l)):
-            acc[2 * j] += sign[tap] * i_v
-            acc[2 * j + 1] += sign[tap] * q_v
+        taps = ((e, (frac + D) & M32), (chip, frac), (l, (frac - D) & M32))
+        for j, (tap, ph) in enumerate(taps):
+            v = sign[tap] * (-1 if (boc and ph >> 31) else 1)
+            acc[2 * j] += v * i_v
+            acc[2 * j + 1] += v * q_v
         tot = cp + carr_fcw
         cyc += tot >> 32
         cp = tot & M32
@@ -42,8 +44,9 @@ def scalar_reference(code, samples, carr_fcw, code_fcw, D, state, tics=()):
     return dumps, meas, acc
 
 
+@pytest.mark.parametrize("boc", [False, True])
 @pytest.mark.parametrize("seed", range(4))
-def test_vectorized_matches_scalar(seed):
+def test_vectorized_matches_scalar(seed, boc):
     rng = np.random.default_rng(seed)
     code = ca_code(int(rng.integers(1, 33)))
     n = 9000
@@ -56,7 +59,7 @@ def test_vectorized_matches_scalar(seed):
     frac0 = int(rng.integers(0, 2**32))
     tics = sorted(set(int(x) for x in rng.integers(0, n, 5)))
 
-    ch = TrackChannel(code, carr_fcw=carr_fcw, code_fcw=code_fcw, half_spacing=D)
+    ch = TrackChannel(code, carr_fcw=carr_fcw, code_fcw=code_fcw, half_spacing=D, boc=boc)
     ch.load(cp0, frac0, chip0)
     dumps, meas = [], []
     # Split into uneven blocks to exercise state carry-over.
@@ -67,7 +70,7 @@ def test_vectorized_matches_scalar(seed):
         meas += mm
 
     ref_d, ref_m, ref_acc = scalar_reference(code, samples, carr_fcw, code_fcw, D,
-                                             (cp0, 0, frac0, chip0, 0), tics)
+                                             (cp0, 0, frac0, chip0, 0), tics, boc)
     assert len(dumps) == len(ref_d) > 0
     for d, r in zip(dumps, ref_d):
         assert (d.sample_index, d.epoch, d.ie, d.qe, d.ip, d.qp, d.il, d.ql) == r

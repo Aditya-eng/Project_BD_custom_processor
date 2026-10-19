@@ -12,7 +12,7 @@
 | **M1** ✅ | Multi-channel RTL (channel bank, sample mux, timebase/tic/PPS, record collector, register bus); C++ host skeleton (record parser, tracking loop bit-identical to Python); LNAV + PVT on simulated data | T0.7–T0.10, T1.6 pass | done (week 0) |
 | M2 | Vivado project on the VC709: XDMA, CDC, playback path; hardware bit-exactness | T2.1–T2.4 | 8 |
 | M3 | Evaluation board recording; live front-end interface via FMC breakout; **first live GPS L1 fix** | T2.5, T3.1–T3.2, first T4.1 data | **12 (≈ 3 months)** |
-| M4 | All v1 signals: BOC(1,1), L5/E5a/B2a with secondary codes, L2C, B1I, G1 FDMA, NavIC L5; observables, RINEX, RTCM out | T1.5 for every signal, T4.2 zero baseline | 24 |
+| M4 (in progress) | All v1 signals: BOC(1,1), L5/E5a/B2a with secondary codes, L2C, B1I, G1 FDMA, NavIC L5; observables, RINEX, RTCM out | T1.5 for every signal, T4.2 zero baseline | 24 |
 | M5 | RTK (RTKLIB-based) + Ntrip; RF bench campaign | T3.3–T3.9, T4.3 | 32 |
 | M6 | Statistics campaign (≥ 300 RTK initializations, TTFF, 7-day run), 192-channel full load, hardening, final report against REQUIREMENTS P-tier | T4 complete | **40–52 (≈ 9–12 months)** |
 

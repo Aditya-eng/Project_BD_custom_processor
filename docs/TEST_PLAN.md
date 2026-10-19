@@ -16,6 +16,8 @@ Every test states its evidence level. A result is never promoted: simulation doe
 | T0.8 | `bd_core` 4-channel bit-exact vs model: paths, short and C/A codes, mid-stream retunes, 10% sample bubbles, 20% record back-pressure, tics → every DUMP/MEAS record identical; no overrun | **pass**; 3/3 injected bugs caught |
 | T0.9 | LNAV: parity round trip and detection of every single-bit error; subframe structure; ephemeris round trip within ½ LSB; preamble search in an inverted stream | **pass** (`model/tests/test_lnav.py`); self-consistent only, field layout to be confirmed on live data |
 | T0.10 | C++ host loop equals the Python loop **bit for bit** over 400 replayed epochs (0 and 1 epoch latency); C++ record parser known-answer test | **pass** (`sw/tests`) |
+| T0.11 | GPS L5 codes against IS-GPS-705J: the XB-advance and XB-state columns agree for all 63 PRNs × I5/Q5 (two independent ICD statements); codes built from either column are identical; first 13 chips equal the complemented state (ICD footnote); NH10/NH20 as printed | **pass** (`model/tests/test_gps_l5.py`) |
+| T0.12 | BOC(1,1) mode bit-exact: model vs scalar reference, `track_channel` random stimulus, and one BOC channel inside the 4-channel `bd_core` test; 2/2 injected subcarrier bugs caught | **pass** |
 
 ## T1 — Receiver algorithms on simulated signals (CI)
 
@@ -25,7 +27,7 @@ Every test states its evidence level. A result is never promoted: simulation doe
 | T1.2 Tracking vs truth: code error, carrier error, Doppler, C/N0, bit sync, nav-bit recovery, with 0 and 1 epoch update latency | **pass (simulated)**: code σ 0.0025–0.006 chip, carrier σ ≈ 0.004 cycle, C/N0 0.8–0.9 dB below truth (2-bit + LUT loss) |
 | T1.3 Acquisition false-alarm rate on 10,000 noise-only searches (REQ-ACQ-004) | to do |
 | T1.4 C/N0 ramp to find the loss-of-lock threshold (REQ-TRK-003) | to do |
-| T1.5 Every new signal type (BOC, secondary codes, FDMA): same T1.2 battery | to do |
+| T1.5 Every new signal type (BOC, secondary codes, FDMA): same T1.2 battery | **GPS L5-Q pass (simulated)**: acquisition, code σ < 0.02 chip, carrier locked (quadrature offset verified), C/N0, NH20 sync and 20 ms coherent wipe-off. Galileo E1, BDS B1I/B1C/B2a, GLONASS G1, L2C still to do |
 | T1.6 IF → acquisition (32-PRN search) → tracking → LNAV TLM/HOW sync → single-epoch PVT, 10 satellites, static receiver | **pass (simulated)**: all visible PRNs detected, none false; transmit-time errors < 10 m; 3D error 3.7 m, time error 5 ns (thresholds 15 m / 50 ns). Ephemeris taken from the scenario; time from the decoded HOW |
 
 ## T2 — FPGA on the VC709 without RF (playback)

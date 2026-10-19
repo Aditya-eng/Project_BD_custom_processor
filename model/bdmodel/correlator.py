@@ -9,7 +9,9 @@ Per accepted sample, using the channel state *before* the update:
   Q         = -s * SIN_LUT[lut_idx]
   early chip = chip + carry(code_frac + D)          (mod code_len)
   late chip  = chip - (code_frac < D)               (mod code_len)
-  each accumulator += code_sign(tap) * (I or Q)
+  tap value  = code bit of the tap's chip, XOR (BOC(1,1) mode only) bit 31 of
+               the tap's fractional phase: frac+D (E), frac (P), frac-D (L), mod 2^32
+  each accumulator += sign(tap value) * (I or Q)
 then the state advances:
   carr_phase += carr_fcw (signed, mod 2^32); carr_cycles += wrap direction
   code_frac  += code_fcw (unsigned, mod 2^32); chip += carry (mod code_len)
@@ -79,6 +81,7 @@ class TrackChannel:
     chip_idx: int = 0
     epoch_cnt: int = 0
     sample_count: int = 0
+    boc: bool = False                 # sine-phased BOC(1,1) subcarrier on the replica
     acc: np.ndarray = field(default_factory=lambda: np.zeros(6, dtype=np.int64))
 
     def __post_init__(self):
@@ -121,15 +124,19 @@ class TrackChannel:
         p_idx = chip_abs % L
         e_idx = (chip_abs + ((frac + self.half_spacing) >> 32)) % L
         l_idx = (chip_abs - (frac < self.half_spacing).astype(np.int64)) % L
+        e_s = self._sign[e_idx]
+        p_s = self._sign[p_idx]
+        l_s = self._sign[l_idx]
+        if self.boc:
+            e_s = e_s * (1 - 2 * (((frac + self.half_spacing) & M32) >> 31))
+            p_s = p_s * (1 - 2 * (frac >> 31))
+            l_s = l_s * (1 - 2 * (((frac - self.half_spacing) & M32) >> 31))
         epoch_of = chip_abs // L
         chip_abs_next = self.chip_idx + ((self.code_frac + n1 * self.code_fcw) >> 32)
         is_last = (chip_abs_next // L) > epoch_of
 
-        prods = np.stack([
-            self._sign[e_idx] * i_val, self._sign[e_idx] * q_val,
-            self._sign[p_idx] * i_val, self._sign[p_idx] * q_val,
-            self._sign[l_idx] * i_val, self._sign[l_idx] * q_val,
-        ])
+        prods = np.stack([e_s * i_val, e_s * q_val, p_s * i_val, p_s * q_val,
+                          l_s * i_val, l_s * q_val])
 
         meas = []
         for k in tics:
