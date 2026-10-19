@@ -4,6 +4,7 @@ In the v1 partition these loops run on the host PC. They see only what the
 FPGA hands over (one dump per code epoch) and send back two control words,
 so the same code drives the real hardware through sw/ later.
 """
+import math
 from collections import deque
 from dataclasses import dataclass, field
 
@@ -46,6 +47,7 @@ class Tracker:
     doppler_hz: float
     code_phase_chips: float
     cfg: LoopConfig = field(default_factory=LoopConfig)
+    tic_samples: tuple = ()        # absolute sample indices where the measurement latch fires
 
     def __post_init__(self):
         self.ch = TrackChannel(ca_code(self.prn))
@@ -59,6 +61,7 @@ class Tracker:
         self._pending = deque()
         self._prev_p = None
         self.records = []
+        self.meas = []
         self.pos = 0
 
     def _apply(self, carr_hz, code_hz):
@@ -70,7 +73,9 @@ class Tracker:
         m = self.ch.samples_to_epoch_end()
         if self.pos + m > len(samples):
             return False
-        dumps, _ = self.ch.process(samples[self.pos:self.pos + m])
+        tics = [t - self.pos for t in self.tic_samples if self.pos <= t < self.pos + m]
+        dumps, meas = self.ch.process(samples[self.pos:self.pos + m], tics)
+        self.meas += meas
         self.pos += m
         assert len(dumps) == 1
         d = dumps[0]
@@ -86,7 +91,8 @@ class Tracker:
         T = 1e-3
         cfg = self.cfg
         ip, qp = float(d.ip), float(d.qp)
-        pll_err = np.arctan(qp / ip) / (2 * np.pi) if ip != 0 else 0.0   # cycles, Costas
+        # Scalar libm math (not NumPy ufuncs) so the C++ twin in sw/ matches bit for bit.
+        pll_err = math.atan(qp / ip) / (2 * math.pi) if ip != 0 else 0.0   # cycles, Costas
 
         fll_err = 0.0
         epoch_n = len(self.records)
@@ -95,7 +101,7 @@ class Tracker:
             dot = pi * ip + pq * qp
             cross = pi * qp - pq * ip
             if dot != 0:
-                fll_err = np.arctan(cross / dot) / (2 * np.pi * T)       # Hz
+                fll_err = math.atan(cross / dot) / (2 * math.pi * T)     # Hz
         self._prev_p = (ip, qp)
 
         w0p = cfg.pll_bw_hz / 0.53
@@ -104,8 +110,8 @@ class Tracker:
         doppler = self._fll_int + 1.414 * w0p * pll_err
         carr_hz = self.f_if_hz + doppler
 
-        e_mag = np.hypot(d.ie, d.qe)
-        l_mag = np.hypot(d.il, d.ql)
+        e_mag = _mag(d.ie, d.qe)
+        l_mag = _mag(d.il, d.ql)
         D = cfg.half_spacing_chips
         dll_err = (1 - D) * (e_mag - l_mag) / (e_mag + l_mag) if e_mag + l_mag else 0.0
         code_hz = CA_CHIP_RATE * (1 + doppler / L1_FREQ) + 4 * cfg.dll_bw_hz * dll_err
@@ -125,13 +131,22 @@ class Tracker:
         return self.ch.code_phase_chips()
 
 
-def bit_sync(ip_history, min_transitions=10):
+def _mag(i, q):
+    """|i + jq| as sqrt(i*i + q*q) in IEEE double; each step is correctly
+    rounded, so C++ gets the identical result (math.hypot uses its own algorithm)."""
+    fi, fq = float(i), float(q)
+    return math.sqrt(fi * fi + fq * fq)
+
+
+def bit_sync(ip_history, min_transitions=10, start=0):
     """Find the 20 ms bit boundary from prompt sign changes.
 
-    Returns the epoch offset (0..19) at which bits start, or None.
+    Epochs before `start` (loop pull-in) are ignored. Returns the epoch
+    offset (0..19) at which bits start, or None.
     """
     s = np.sign(np.asarray(ip_history, dtype=np.float64))
     trans = np.nonzero(s[1:] != s[:-1])[0] + 1
+    trans = trans[trans >= start]
     if len(trans) < min_transitions:
         return None
     hist = np.bincount(trans % 20, minlength=20)
