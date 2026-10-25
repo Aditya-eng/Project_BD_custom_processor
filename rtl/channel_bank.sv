@@ -39,7 +39,7 @@ module channel_bank #(
 );
     localparam [3:0] R_CARR = 4'd0, R_CODE = 4'd1, R_SPACING = 4'd2, R_CODE_LEN = 4'd3,
                      R_PATH = 4'd4, R_LD_CARR = 4'd5, R_LD_FRAC = 4'd6, R_LD_CHIP = 4'd7,
-                     R_CMD = 4'd8, R_WADDR = 4'd9, R_WDATA = 4'd10;
+                     R_CMD = 4'd8, R_WADDR = 4'd9, R_WDATA = 4'd10, R_MODE = 4'd11;
     localparam [3:0] T_DUMP = 4'd1, T_MEAS = 4'd2;
 
     // Per-channel outputs gathered for the collector
@@ -61,6 +61,7 @@ module channel_bank #(
             reg [31:0]        carr_sh, code_sh, carr_act, code_act, spacing;
             reg [CODE_AW:0]   code_len;
             reg [1:0]         path;
+            reg               boc;
             reg [31:0]        ld_carr, ld_frac;
             reg [CODE_AW-1:0] ld_chip, waddr;
             reg               load, code_we, code_wbit;
@@ -74,6 +75,7 @@ module channel_bank #(
                     spacing  <= 32'h8000_0000;
                     code_len <= 1023;
                     path     <= 2'd0;
+                    boc      <= 1'b0;
                     waddr    <= {CODE_AW{1'b0}};
                 end else if (sel) begin
                     case (reg_idx)
@@ -82,6 +84,7 @@ module channel_bank #(
                         R_SPACING:  spacing  <= wr_data;
                         R_CODE_LEN: code_len <= wr_data[CODE_AW:0];
                         R_PATH:     path     <= wr_data[1:0];
+                        R_MODE:     boc      <= wr_data[0];
                         R_LD_CARR:  ld_carr  <= wr_data;
                         R_LD_FRAC:  ld_frac  <= wr_data;
                         R_LD_CHIP:  ld_chip  <= wr_data[CODE_AW-1:0];
@@ -111,7 +114,7 @@ module channel_bank #(
                 .clk(clk), .rst(rst),
                 .sample(smp), .sample_valid(s_valid), .tic(s_tic),
                 .carr_fcw(carr_act), .code_fcw(code_act), .half_spacing(spacing),
-                .code_len(code_len),
+                .code_len(code_len), .boc(boc),
                 .load(load), .load_carr_phase(ld_carr), .load_code_frac(ld_frac),
                 .load_chip_idx(ld_chip),
                 .code_we(code_we), .code_waddr(code_waddr), .code_wdata(code_wbit),

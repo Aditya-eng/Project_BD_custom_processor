@@ -55,6 +55,7 @@ The source of truth is `rtl/bd_core.sv` and `rtl/channel_bank.sv`. Host-side par
 | 0x20 | CMD | bit 0 commit: shadow FCWs become active together. bit 1 load: commit, plus load phases, clear accumulators and the epoch counter |
 | 0x24 | CODE_WADDR | Code memory write address |
 | 0x28 | CODE_WDATA | bit 0 is written at CODE_WADDR, then CODE_WADDR increments (logic 0 → +1) |
+| 0x2C | MODE | bit 0: BOC(1,1). Each tap is XORed with bit 31 of its own fractional chip phase (frac+D, frac, frac−D), i.e. a sine-phased BOC(1,1) replica (Galileo E1, BeiDou B1C, GPS L1C). Reset 0 |
 
 Control words take effect on the first sample after the write. In operation the exact sample does not matter, because the NCOs are continuous. The bit-exact tests write them while samples are paused.
 

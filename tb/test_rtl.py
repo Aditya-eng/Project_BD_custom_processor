@@ -62,7 +62,7 @@ class Harness:
     async def start(self):
         d = self.dut
         cocotb.start_soon(Clock(d.clk, 10, unit="ns").start())
-        for sig in (d.sample, d.sample_valid, d.tic, d.load, d.code_we, d.carr_fcw, d.code_fcw,
+        for sig in (d.sample, d.sample_valid, d.tic, d.load, d.code_we, d.carr_fcw, d.code_fcw, d.boc,
                     d.half_spacing, d.load_carr_phase, d.load_code_frac, d.load_chip_idx,
                     d.code_waddr, d.code_wdata):
             sig.value = 0
@@ -148,15 +148,15 @@ async def run_segments(h, ch, segments):
     return exp_d, exp_m
 
 
-@cocotb.test()
-async def track_channel_random_stimulus(dut):
+async def _random_stimulus(dut, boc):
     """Random samples, control words, bubbles, tics, a short memory code and reloads."""
-    rng = np.random.default_rng(int(os.environ.get("TB_SEED", "1")))
+    rng = np.random.default_rng(int(os.environ.get("TB_SEED", "1")) + 1000 * boc)
     h = Harness(dut)
     await h.start()
+    dut.boc.value = int(boc)
     code = rng.integers(0, 2, 37).astype(np.uint8)      # short code -> many epochs
     await h.load_code(code)
-    ch = TrackChannel(code)
+    ch = TrackChannel(code, boc=boc)
     segs = [("load", int(rng.integers(0, 2**32)), int(rng.integers(0, 2**32)), 11)]
     for k in range(10):
         n = int(rng.integers(1500, 3000))
@@ -171,6 +171,16 @@ async def track_channel_random_stimulus(dut):
     assert len(exp_d) > 20 and len(exp_m) > 5
     assert h.dumps == exp_d
     assert h.meas == exp_m
+
+
+@cocotb.test()
+async def track_channel_random_stimulus(dut):
+    await _random_stimulus(dut, boc=False)
+
+
+@cocotb.test()
+async def track_channel_random_stimulus_boc(dut):
+    await _random_stimulus(dut, boc=True)
 
 
 @cocotb.test()
@@ -222,4 +232,5 @@ def test_gps_ca_gen():
 
 def test_track_channel():
     _run("track_channel", ["track_channel.sv"],
-         ["track_channel_random_stimulus", "track_channel_gps_signal"])
+         ["track_channel_random_stimulus", "track_channel_random_stimulus_boc",
+          "track_channel_gps_signal"])

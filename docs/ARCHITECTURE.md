@@ -86,12 +86,17 @@ The VC709 has one HPC FMC (J35) at a fixed 1.8 V VADJ (likely, board listings), 
 | Code NCO | 32-bit fractional chip phase, unsigned FCW < 2³¹ (code rate < fs/2), chip index modulo `code_len` (≤ 16384) |
 | Taps | E = chip + carry(frac + D), L = chip − (frac < D), P = chip; D = `half_spacing` in chips·2³² (E−L spacing = 2D) |
 | Code memory | 1 bit per chip, written by the host or `gps_ca_gen`, logic 0 → +1 |
+| BOC(1,1) mode | Per channel (MODE register): each tap's code bit is XORed with bit 31 of that tap's fractional phase (frac+D, frac, frac−D). CBOC(6,1,1/11) signals (Galileo E1) are tracked with this BOC(1,1) replica, losing about 0.9 dB (estimate) |
 | Dump | On the chip wrap code_len−1 → 0, the six 32-bit accumulators (including this sample) are output and cleared; `epoch_cnt` increments |
 | Measurement latch | On `tic` with a valid sample: carrier phase, cycle count, code fraction, chip index, epoch count — the raw material for pseudorange and carrier-phase observables, latched in the same sample on every channel |
 | Load | Sets NCO state and clears accumulators; an epoch that ended just before the load is still dumped |
 | Pipeline | 3 stages (taps → products → accumulate) |
 
-Still to add to the channel (each with its own bit-exact test): BOC(1,1) subcarrier (Galileo E1, BDS B1C, GPS L1C); secondary/overlay codes (NH10/NH20, L5/E5a/B2a); dual-component (data + pilot) pairing; programmable integration length (1–20 ms) for weak signals; very-early/very-late taps for multipath monitoring.
+Secondary (overlay) codes are wiped off on the host, which receives one dump per primary epoch (implemented for GPS L5: `signals.secondary_sync`). Data + pilot pairs use two channels commanded in lockstep by the host.
+
+Still to add to the channel, each with its own bit-exact test:
+- programmable integration length (1–20 ms) for weak signals, which will then need secondary-code wipe-off in hardware;
+- very-early/very-late taps for multipath monitoring.
 
 ## 5. Clock and reset domains
 

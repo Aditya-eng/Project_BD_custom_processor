@@ -13,6 +13,8 @@ No licence is granted yet: **all rights reserved by the project owner**. The own
 3. Every third-party component gets a row below **before** it is added. The row records the licence as read from the component's own `LICENSE` file at the pinned version.
 4. Vendor IP (Xilinx XDMA, MIG, FIFO generator, clocking wizard) may be used on the FPGA prototype. It must be replaced before any non-Xilinx target (ASIC), because Xilinx IP licences restrict use to Xilinx devices.
 5. Interface specifications (IS-GPS-200/705/800, Galileo OS SIS ICD, BDS ICDs, IRNSS SPS ICD, QZSS IS-QZSS, RTCM 10403.x, NMEA 0183, RINEX) are implemented from the documents themselves.
+   - ICD tables enter the repo only through an importer in `tools/` that parses a text extraction of the official document and cross-checks every row before writing. The ICD PDFs are not stored in the repo.
+   - GPS L5: `tools/import_is705.py`, from IS-GPS-705J (01-AUG-2022), downloaded from gps.gov via the project owner's Apify web-fetch connector (this environment's network policy blocks gps.gov).
    - RTCM 10403.x and NMEA 0183 are paid standards: buy a copy; do not copy text from them into the repo.
 
 ## Third-party register

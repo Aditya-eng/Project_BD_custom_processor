@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .correlator import TrackChannel, freq_to_fcw, rate_to_fcw
-from .gps_ca import CA_CHIP_RATE, CA_LEN, L1_FREQ, ca_code
+from .signals import GPS_L1CA, SignalSpec
 
 
 @dataclass
@@ -48,14 +48,16 @@ class Tracker:
     code_phase_chips: float
     cfg: LoopConfig = field(default_factory=LoopConfig)
     tic_samples: tuple = ()        # absolute sample indices where the measurement latch fires
+    spec: SignalSpec = GPS_L1CA
 
     def __post_init__(self):
-        self.ch = TrackChannel(ca_code(self.prn))
+        spec = self.spec
+        self.ch = TrackChannel(spec.code(self.prn), boc=spec.boc11)
         self.ch.half_spacing = int(round(self.cfg.half_spacing_chips * 2**32))
-        cp = self.code_phase_chips % CA_LEN
+        cp = self.code_phase_chips % spec.code_len
         self.ch.load(carr_phase=0, code_frac=int((cp % 1) * 2**32), chip_idx=int(cp))
         self.carr_nco_hz = self.f_if_hz + self.doppler_hz
-        self.code_nco_hz = CA_CHIP_RATE * (1 + self.doppler_hz / L1_FREQ)
+        self.code_nco_hz = spec.chip_rate * (1 + self.doppler_hz / spec.carrier_hz)
         self._fll_int = self.doppler_hz
         self._apply(self.carr_nco_hz, self.code_nco_hz)
         self._pending = deque()
@@ -88,7 +90,7 @@ class Tracker:
         return self.records
 
     def _update(self, d):
-        T = 1e-3
+        T = self.spec.epoch_s
         cfg = self.cfg
         ip, qp = float(d.ip), float(d.qp)
         # Scalar libm math (not NumPy ufuncs) so the C++ twin in sw/ matches bit for bit.
@@ -114,7 +116,7 @@ class Tracker:
         l_mag = _mag(d.il, d.ql)
         D = cfg.half_spacing_chips
         dll_err = (1 - D) * (e_mag - l_mag) / (e_mag + l_mag) if e_mag + l_mag else 0.0
-        code_hz = CA_CHIP_RATE * (1 + doppler / L1_FREQ) + 4 * cfg.dll_bw_hz * dll_err
+        code_hz = self.spec.chip_rate * (1 + doppler / self.spec.carrier_hz) + 4 * cfg.dll_bw_hz * dll_err
 
         self._pending.append((carr_hz, code_hz))
         if len(self._pending) > cfg.update_delay_epochs:
