@@ -115,7 +115,9 @@ class Tracker:
         e_mag = _mag(d.ie, d.qe)
         l_mag = _mag(d.il, d.ql)
         D = cfg.half_spacing_chips
-        dll_err = (1 - D) * (e_mag - l_mag) / (e_mag + l_mag) if e_mag + l_mag else 0.0
+        # Chips of error per unit (E-L)/(E+L): BPSK peak slope 1, BOC(1,1) slope 3 (D < 1/3).
+        gain = (1 - 3 * D) / 3 if self.spec.boc11 else 1 - D
+        dll_err = gain * (e_mag - l_mag) / (e_mag + l_mag) if e_mag + l_mag else 0.0
         code_hz = self.spec.chip_rate * (1 + doppler / self.spec.carrier_hz) + 4 * cfg.dll_bw_hz * dll_err
 
         self._pending.append((carr_hz, code_hz))

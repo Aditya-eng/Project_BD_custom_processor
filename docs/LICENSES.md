@@ -15,6 +15,28 @@ No licence is granted yet: **all rights reserved by the project owner**. The own
 5. Interface specifications (IS-GPS-200/705/800, Galileo OS SIS ICD, BDS ICDs, IRNSS SPS ICD, QZSS IS-QZSS, RTCM 10403.x, NMEA 0183, RINEX) are implemented from the documents themselves.
    - ICD tables enter the repo only through an importer in `tools/` that parses a text extraction of the official document and cross-checks every row before writing. The ICD PDFs are not stored in the repo.
    - GPS L5: `tools/import_is705.py`, from IS-GPS-705J (01-AUG-2022), downloaded from gps.gov via the project owner's Apify web-fetch connector (this environment's network policy blocks gps.gov).
+   - Galileo: `tools/import_galileo_icd.py`, from the Galileo OS SIS ICD Issue 2.2 (November 2025), PDF SHA-256 `1ca51b26…4671`, downloaded from gsc-europa.eu via the same connector. The codes come from the PDF's electronic Annex C attachments plus its tables. The importer checks that all 200 E5 codes generated from the ICD tables equal the attachments, chip for chip.
+
+## Galileo OS SIS ICD authorisation (Annex H)
+
+The Galileo spreading codes and other ICD "Technical Data" are EU intellectual property. They are used here under the ICD's Annex H Authorisation.
+
+**Acceptance.** The project owner accepted the Annex H terms for this project on 2026-10-26.
+
+**What the authorisation allows.** It is royalty-free and worldwide, covering R&D, manufacturing and sale of receivers.
+
+**Conditions:**
+- It is non-transferable and cannot be sublicensed.
+- It is withdrawn if the holder challenges the validity of the EU IPRs.
+- Export controls apply.
+- The holder must not harm EU security interests, and must not claim EU endorsement.
+- Third-party claims are defended at the holder's own cost.
+- Governing law is EU/Belgian, with WIPO mediation or arbitration in Brussels.
+
+**Obligations the project follows:**
+- Code tables are stored only with the source acknowledgement and "© European Union 2025" notice that the importer writes into each generated file (Annex H.3 b).
+- The ICD PDF itself is **not** committed or redistributed. Reproduction is only allowed unmodified and for non-commercial purposes (H.3 c).
+- No product material may state or imply EU approval or endorsement.
    - RTCM 10403.x and NMEA 0183 are paid standards: buy a copy; do not copy text from them into the repo.
 
 ## Third-party register
@@ -30,6 +52,8 @@ No licence is granted yet: **all rights reserved by the project owner**. The own
 | Vivado + XDMA/MIG/FIFO IP | FPGA implementation | Xilinx EULA / IP licence | bitstream only | OK for the prototype; replace for an ASIC |
 | RTKLIB 2.4.3 | v1 RTK/PPP engine (host) | BSD-2-Clause **plus two additional clauses** (from 2.4.2; earlier versions were GPLv3) | yes | **Pending:** read the extra clauses at the pinned commit before linking; demo5 fork licence also unverified |
 | GNSS-SDR | external cross-check on recorded files only | GPL-3.0-or-later | **never** | Tool use only; no code or ports into this repo |
+| Galileo OS SIS ICD codes (`model/bdmodel/tables/galileo_*`) | E1/E5 primary and secondary codes | EU Annex H Authorisation (royalty-free, conditions above) | yes | Accepted 2026-10-26 |
+| poppler-utils (`pdfdetach`, `pdftotext`) | Galileo importer only | GPL-2.0 | no (tool) | OK (tool use only) |
 | Trimble GSOF, CMR/CMR+, RTX | — | proprietary | — | Excluded |
 
 ## Patents (separate from licences)
