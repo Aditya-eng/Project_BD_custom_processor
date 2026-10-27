@@ -56,6 +56,10 @@ def generate(components, fe: FrontEnd, duration_s, seed=1, chunk=1 << 20):
                 v = v * np.where(np.isin(idx % 33, (0, 4, 6, 29)), sc6, sc1)
             elif spec.boc11:
                 v = v * sc1
+            if spec.tdm_slot is not None:
+                # Each TDM component fills its half chips at the full amplitude, so a pair
+                # (e.g. L2 CM + CL) is a constant envelope and cn0_dbhz is the pair's C/N0.
+                v = v * ((frac >= 0.5) == spec.tdm_slot)
             epoch = (np.floor(chips / spec.code_len)
                      - np.floor(c.code_phase_chips / spec.code_len)).astype(np.int64)
             sec_code = spec.secondary_code(c.prn)

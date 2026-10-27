@@ -212,7 +212,8 @@ async def channel_bank_bit_exact(dut):
         cf, kf = freq_to_fcw(fc, fe.fs_hz), rate_to_fcw(fr, fe.fs_hz)
         await c.ch_write(ch, "PATH", path)
         boc = ch == 3                      # channel 3 runs in BOC(1,1) mode
-        await c.ch_write(ch, "MODE", int(boc))
+        tdm = ch == 1                      # channel 1 in TDM mode, second half-chip
+        await c.ch_write(ch, "MODE", int(boc) | (int(tdm) << 1) | (int(tdm) << 2))
         await c.ch_write(ch, "SPACING", sp)
         await c.ch_write(ch, "CARR", cf)
         await c.ch_write(ch, "CODE", kf)
@@ -220,7 +221,8 @@ async def channel_bank_bit_exact(dut):
         await c.ch_write(ch, "LD_FRAC", 1 << 30)
         await c.ch_write(ch, "LD_CHIP", chip0)
         await c.ch_write(ch, "CMD", 2)
-        m = TrackChannel(bits, carr_fcw=cf, code_fcw=kf, half_spacing=sp, boc=boc)
+        m = TrackChannel(bits, carr_fcw=cf, code_fcw=kf, half_spacing=sp, boc=boc, tdm=tdm,
+                         tdm_slot=1 if tdm else 0)
         m.load(0, 1 << 30, chip0)
         m.path = path
         chans[ch] = m

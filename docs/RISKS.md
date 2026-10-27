@@ -30,3 +30,4 @@
 | R10 | Clean-room breach (firmware/die analysis of the E600/BD990) | low | defensibility | CLEAN_ROOM.md |
 | R11 | Single developer bandwidth | high | schedule | Scope strictly to P-tier; defer every F-tier item |
 | R12 | Host OS jitter delays loop updates by > 1 epoch | low | tracking robustness | Loops are validated with 1-epoch latency (REQ-TRK-004); add a 2–3 epoch test; real-time thread priority |
+| R13 | IS-GPS-200N states the L2C multiplex order only indirectly ("first L2 CM-code chip starts synchronously with the end/start of week epoch"); we read it as CM first. If wrong, every L2C pseudorange is biased by one slot (~293 m) | low | L2C observables | Slot is a register bit (MODE bit 2), not hard-wired; T3.10 checks it on the first live L2C data |

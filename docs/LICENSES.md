@@ -18,6 +18,8 @@ No licence is granted yet: **all rights reserved by the project owner**. The own
    - GPS L1C: `tools/import_is800.py`, from the IS-GPS-800J PDF (01-AUG-2022, SHA-256 `c4aad710…5d0a`), via the same connector.
      - Cross-checks: the Legendre sequence against Table 6.2-1; all 126 codes against their printed first and last 24 chips; all 63 overlays against their final 11 bits.
      - **ICD typo:** Table 3.2-2 sheet 2 prints PRN "3" for the row between 37 and 39. This is visible on the rendered page. The row is handled as PRN 38 by an explicit, asserted rule.
+   - GPS L2C: `tools/import_is200.py`, from the IS-GPS-200N PDF (01-AUG-2022, SHA-256 `54ec544b…749a`), via the same connector.
+     - Cross-checks: for all 115 PRNs in Tables 3-IIa, 3-IIb and 6-II, the CM and CL generators started from the printed initial state reach the printed end state (230 checks). Only one of six candidate register conventions passes.
    - Galileo: `tools/import_galileo_icd.py`, from the Galileo OS SIS ICD Issue 2.2 (November 2025), PDF SHA-256 `1ca51b26…4671`, downloaded from gsc-europa.eu via the same connector. The codes come from the PDF's electronic Annex C attachments plus its tables. The importer checks that all 200 E5 codes generated from the ICD tables equal the attachments, chip for chip.
 
 ## Galileo OS SIS ICD authorisation (Annex H)

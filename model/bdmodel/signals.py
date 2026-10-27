@@ -12,6 +12,7 @@ import numpy as np
 
 from . import galileo as gal
 from . import gps_l1c as l1c
+from . import gps_l2c as l2c
 from .gps_ca import CA_CHIP_RATE, CA_LEN, L1_FREQ, ca_code
 from .gps_l5 import L5_CHIP_RATE, L5_FREQ, L5_LEN, NH10, NH20, l5_code
 
@@ -29,6 +30,8 @@ class SignalSpec:
     secondary_fn: Optional[Callable[[int], tuple]] = None   # per-PRN overlay (overrides `secondary`)
     cboc: Optional[str] = None                # simulation only: '+'/'-' CBOC(6,1,1/11) as broadcast
     tmboc: bool = False                       # simulation only: GPS L1CP TMBOC(6,1,4/33) as broadcast
+    tdm_slot: Optional[int] = None            # chip-by-chip time multiplex: the half chip (0/1) this
+                                              # code occupies; the replica is zero in the other half
 
     def code(self, prn: int) -> np.ndarray:
         return _code_cached(self.name, prn, self.code_fn)
@@ -59,6 +62,12 @@ GPS_L1CP = SignalSpec("GPS L1CP", lambda p: l1c.l1c_code(p, "P"), l1c.L1C_LEN, l
 GPS_L1CD = SignalSpec("GPS L1CD", lambda p: l1c.l1c_code(p, "D"), l1c.L1C_LEN, l1c.L1C_CHIP_RATE,
                       l1c.L1C_FREQ, boc11=True)
 
+# GPS L2C (IS-GPS-200N): CM (data) and CL (pilot) alternate every half chip, CM first.
+GPS_L2CM = SignalSpec("GPS L2 CM", lambda p: l2c.l2c_code(p, "M"), l2c.CM_LEN, l2c.L2C_CHIP_RATE,
+                      l2c.L2_FREQ, tdm_slot=0)
+GPS_L2CL = SignalSpec("GPS L2 CL", lambda p: l2c.l2c_code(p, "L"), l2c.CL_LEN, l2c.L2C_CHIP_RATE,
+                      l2c.L2_FREQ, tdm_slot=1, pilot=True)
+
 # Galileo (OS SIS ICD). E1 is broadcast as CBOC(6,1,1/11) and tracked with a BOC(1,1) replica.
 GAL_E1B = SignalSpec("Galileo E1-B", lambda p: gal.e1_code(p, "B"), gal.E1_LEN, gal.E1_CHIP_RATE,
                      gal.E1_FREQ, boc11=True, cboc="+")
@@ -71,11 +80,14 @@ GAL_E5AQ = SignalSpec("Galileo E5a-Q", lambda p: gal.e5_code(p, "aQ"), gal.E5_LE
 
 
 def replica(spec: SignalSpec, prn: int, n: int, fs_hz: float, chip0: float = 0.0) -> np.ndarray:
-    """+/-1 sampled replica (code and BOC subcarrier) starting at chip phase chip0."""
+    """Sampled replica (code, BOC subcarrier, TDM gate) starting at chip phase chip0:
+    +/-1, or 0 in the half chips a time-multiplexed code does not occupy."""
     chips = chip0 + np.arange(n) * spec.chip_rate / fs_hz
     c = 1.0 - 2.0 * spec.code(prn)[np.floor(chips).astype(np.int64) % spec.code_len]
     if spec.boc11:
         c = c * np.where((chips % 1.0) < 0.5, 1.0, -1.0)
+    if spec.tdm_slot is not None:
+        c = c * (((chips % 1.0) >= 0.5) == spec.tdm_slot)
     return c
 
 

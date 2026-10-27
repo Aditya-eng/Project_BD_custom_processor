@@ -52,7 +52,8 @@ class Tracker:
 
     def __post_init__(self):
         spec = self.spec
-        self.ch = TrackChannel(spec.code(self.prn), boc=spec.boc11)
+        self.ch = TrackChannel(spec.code(self.prn), boc=spec.boc11, tdm=spec.tdm_slot is not None,
+                               tdm_slot=spec.tdm_slot or 0)
         self.ch.half_spacing = int(round(self.cfg.half_spacing_chips * 2**32))
         cp = self.code_phase_chips % spec.code_len
         self.ch.load(carr_phase=0, code_frac=int((cp % 1) * 2**32), chip_idx=int(cp))
@@ -115,8 +116,14 @@ class Tracker:
         e_mag = _mag(d.ie, d.qe)
         l_mag = _mag(d.il, d.ql)
         D = cfg.half_spacing_chips
-        # Chips of error per unit (E-L)/(E+L): BPSK peak slope 1, BOC(1,1) slope 3 (D < 1/3).
-        gain = (1 - 3 * D) / 3 if self.spec.boc11 else 1 - D
+        # Chips of error per unit (E-L)/(E+L): BPSK peak slope 1, BOC(1,1) slope 3 (D < 1/3),
+        # TDM (half-chip replica and signal): triangle of half-width 1/2 (D < 1/2).
+        if self.spec.boc11:
+            gain = (1 - 3 * D) / 3
+        elif self.spec.tdm_slot is not None:
+            gain = 0.5 - D
+        else:
+            gain = 1 - D
         dll_err = gain * (e_mag - l_mag) / (e_mag + l_mag) if e_mag + l_mag else 0.0
         code_hz = self.spec.chip_rate * (1 + doppler / self.spec.carrier_hz) + 4 * cfg.dll_bw_hz * dll_err
 
