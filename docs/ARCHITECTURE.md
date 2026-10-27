@@ -93,7 +93,9 @@ The VC709 has one HPC FMC (J35) at a fixed 1.8 V VADJ (likely, board listings), 
 | Load | Sets NCO state and clears accumulators; an epoch that ended just before the load is still dumped |
 | Pipeline | 3 stages (taps → products → accumulate) |
 
-Secondary (overlay) codes are wiped off on the host, which receives one dump per primary epoch (implemented for GPS L5: `signals.secondary_sync`). Data + pilot pairs use two channels commanded in lockstep by the host.
+Secondary (overlay) codes are wiped off on the host, which receives one dump per primary epoch (`signals.secondary_sync`; GPS L5, Galileo E1-C/E5a, GPS L1CO, BeiDou B1I D1). Sync scores each secondary period separately, so data bits aligned with the period do not defeat it.
+
+BeiDou B1I (P1, 2.046 Mcps, 2046 chips) uses the plain BPSK channel; no RTL change. Its broadcast codes are Gold codes truncated by one chip, which raises the worst cross-correlation to −19.8 dB (measured, T0.17) from −30 dB. A strong B1I satellite can therefore produce false peaks for a satellite ~20 dB weaker; acquisition must cancel or check detections against strong satellites already tracked. Data + pilot pairs use two channels commanded in lockstep by the host.
 
 Still to add to the channel, each with its own bit-exact test:
 - an LFSR code-generator source for codes too long for the 16384-chip memory: GPS L2 CL (767250 chips, 27-stage modular SRG, `bdmodel/gps_l2c.py`) and, later, P(Y)-length codes. Until then L2C is tracked on CM only (CL is a pilot with 3 dB more power and allows long coherent integration);

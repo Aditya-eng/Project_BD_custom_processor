@@ -25,6 +25,7 @@ class Component:
     secondary_offset: int = 0          # secondary bit of the epoch containing t = 0
     data: Optional[np.ndarray] = None  # +/-1 symbols
     epochs_per_symbol: int = 1
+    symbol_offset: int = 0             # epochs into the current symbol at t = 0
 
     def chips_at(self, t):
         rate = self.spec.chip_rate * (1 + self.doppler_hz / self.spec.carrier_hz)
@@ -67,7 +68,8 @@ def generate(components, fe: FrontEnd, duration_s, seed=1, chunk=1 << 20):
                 sec = 1.0 - 2.0 * np.array(sec_code)
                 v = v * sec[(epoch + c.secondary_offset) % len(sec)]
             if c.data is not None:
-                v = v * c.data[np.clip(epoch // c.epochs_per_symbol, 0, len(c.data) - 1)]
+                sym = (epoch + c.symbol_offset) // c.epochs_per_symbol
+                v = v * c.data[np.clip(sym, 0, len(c.data) - 1)]
             amp = 2.0 * np.sqrt(10 ** (c.cn0_dbhz / 10) / fe.fs_hz)
             ph = 2 * np.pi * ((fe.f_if_hz + c.doppler_hz) * t + c.carrier_phase_cycles)
             x += amp * v * (-np.sin(ph) if c.quadrature else np.cos(ph))
