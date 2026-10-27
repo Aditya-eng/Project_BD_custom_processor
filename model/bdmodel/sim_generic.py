@@ -42,12 +42,20 @@ def generate(components, fe: FrontEnd, duration_s, seed=1, chunk=1 << 20):
             spec = c.spec
             chips = c.chips_at(t)
             v = 1.0 - 2.0 * spec.code(c.prn)[np.floor(chips).astype(np.int64) % spec.code_len]
-            if spec.boc11:
-                v = v * np.where((chips % 1.0) < 0.5, 1.0, -1.0)
+            frac = chips % 1.0
+            sc1 = np.where(frac < 0.5, 1.0, -1.0)                 # sine BOC(1,1)
+            if spec.cboc:
+                # CBOC(6,1,1/11): alpha*BOC(1,1) +/- beta*BOC(6,1), 12 half-periods per chip
+                sc6 = np.where(np.floor(frac * 12).astype(np.int64) % 2 == 0, 1.0, -1.0)
+                a, b = np.sqrt(10 / 11), np.sqrt(1 / 11)
+                v = v * (a * sc1 + (b if spec.cboc == "+" else -b) * sc6)
+            elif spec.boc11:
+                v = v * sc1
             epoch = (np.floor(chips / spec.code_len)
                      - np.floor(c.code_phase_chips / spec.code_len)).astype(np.int64)
-            if spec.secondary is not None:
-                sec = 1.0 - 2.0 * np.array(spec.secondary)
+            sec_code = spec.secondary_code(c.prn)
+            if sec_code is not None:
+                sec = 1.0 - 2.0 * np.array(sec_code)
                 v = v * sec[(epoch + c.secondary_offset) % len(sec)]
             if c.data is not None:
                 v = v * c.data[np.clip(epoch // c.epochs_per_symbol, 0, len(c.data) - 1)]

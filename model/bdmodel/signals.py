@@ -10,6 +10,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
+from . import galileo as gal
 from .gps_ca import CA_CHIP_RATE, CA_LEN, L1_FREQ, ca_code
 from .gps_l5 import L5_CHIP_RATE, L5_FREQ, L5_LEN, NH10, NH20, l5_code
 
@@ -24,9 +25,14 @@ class SignalSpec:
     boc11: bool = False                       # sine-phased BOC(1,1) subcarrier on the replica
     secondary: Optional[tuple] = None         # overlay code bits, one per primary epoch
     pilot: bool = False                       # no data modulation
+    secondary_fn: Optional[Callable[[int], tuple]] = None   # per-PRN overlay (overrides `secondary`)
+    cboc: Optional[str] = None                # simulation only: '+'/'-' CBOC(6,1,1/11) as broadcast
 
     def code(self, prn: int) -> np.ndarray:
         return _code_cached(self.name, prn, self.code_fn)
+
+    def secondary_code(self, prn: int) -> Optional[tuple]:
+        return self.secondary_fn(prn) if self.secondary_fn else self.secondary
 
     @property
     def epoch_s(self) -> float:
@@ -44,6 +50,16 @@ GPS_L5I = SignalSpec("GPS L5-I", lambda p: l5_code(p, "I"), L5_LEN, L5_CHIP_RATE
 GPS_L5Q = SignalSpec("GPS L5-Q", lambda p: l5_code(p, "Q"), L5_LEN, L5_CHIP_RATE, L5_FREQ,
                      secondary=tuple(int(b) for b in NH20), pilot=True)
 
+# Galileo (OS SIS ICD). E1 is broadcast as CBOC(6,1,1/11) and tracked with a BOC(1,1) replica.
+GAL_E1B = SignalSpec("Galileo E1-B", lambda p: gal.e1_code(p, "B"), gal.E1_LEN, gal.E1_CHIP_RATE,
+                     gal.E1_FREQ, boc11=True, cboc="+")
+GAL_E1C = SignalSpec("Galileo E1-C", lambda p: gal.e1_code(p, "C"), gal.E1_LEN, gal.E1_CHIP_RATE,
+                     gal.E1_FREQ, boc11=True, cboc="-", pilot=True, secondary_fn=gal.e1c_secondary)
+GAL_E5AI = SignalSpec("Galileo E5a-I", lambda p: gal.e5_code(p, "aI"), gal.E5_LEN,
+                      gal.E5_CHIP_RATE, gal.E5A_FREQ, secondary_fn=gal.e5ai_secondary)
+GAL_E5AQ = SignalSpec("Galileo E5a-Q", lambda p: gal.e5_code(p, "aQ"), gal.E5_LEN,
+                      gal.E5_CHIP_RATE, gal.E5A_FREQ, pilot=True, secondary_fn=gal.e5aq_secondary)
+
 
 def replica(spec: SignalSpec, prn: int, n: int, fs_hz: float, chip0: float = 0.0) -> np.ndarray:
     """+/-1 sampled replica (code and BOC subcarrier) starting at chip phase chip0."""
@@ -54,15 +70,16 @@ def replica(spec: SignalSpec, prn: int, n: int, fs_hz: float, chip0: float = 0.0
     return c
 
 
-def secondary_sync(prompt_i, spec: SignalSpec, start=0):
+def secondary_sync(prompt_i, spec: SignalSpec, start=0, prn=None):
     """Align the secondary code with prompt epochs (sign-ambiguous, e.g. Costas).
 
     Returns the offset k such that epoch n carries secondary bit (n + k) % len,
     or None if the match is not unanimous.
     """
-    if spec.secondary is None:
+    code = spec.secondary_code(prn)
+    if code is None:
         return 0
-    sec = 1 - 2 * np.array(spec.secondary)
+    sec = 1 - 2 * np.array(code)
     s = np.sign(np.asarray(prompt_i[start:], dtype=np.float64))
     L = len(sec)
     m = (len(s) // L) * L

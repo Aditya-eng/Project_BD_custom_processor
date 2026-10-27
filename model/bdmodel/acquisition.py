@@ -50,3 +50,33 @@ def acquire(samples, prn, fs_hz, f_if_hz, doppler_max_hz=5000.0, doppler_step_hz
     # samples: the replica must start at chip phase -si samples.
     code_phase = (-si * spec.chip_rate / fs_hz) % spec.code_len
     return AcqResult(prn, metric > threshold, float(dopplers[di]), code_phase, int(si), float(metric))
+
+
+def refine_doppler(samples, acq: AcqResult, fs_hz, f_if_hz, spec: SignalSpec = GPS_L1CA,
+                   span_hz=200.0, step_hz=5.0, blocks=8):
+    """Fine Doppler search at the acquired code phase, on blocks aligned to code epochs.
+
+    Coarse FFT blocks straddle epoch boundaries, so a data or secondary-code sign
+    flip inside a block smears the Doppler estimate. Once the code phase is
+    known, each block here covers exactly one primary code period (constant
+    sign), and the per-block powers are summed non-coherently.
+    """
+    n = int(round(fs_hz * spec.epoch_s))
+    # First epoch start: replica chip phase reaches a multiple of code_len.
+    chips_to_epoch = (spec.code_len - acq.code_phase_chips) % spec.code_len
+    start = int(np.ceil(chips_to_epoch * fs_hz / spec.chip_rate))
+    need = start + blocks * n
+    if len(samples) < need:
+        raise ValueError("snapshot too short")
+    chip0 = acq.code_phase_chips + start * spec.chip_rate / fs_hz
+    rep = replica(spec, acq.prn, blocks * n, fs_hz, chip0)
+    x = np.asarray(samples[start:need], dtype=np.float64) * rep
+    t = (start + np.arange(blocks * n)) / fs_hz
+    best = None
+    for fd in np.arange(acq.doppler_hz - span_hz, acq.doppler_hz + span_hz + step_hz / 2, step_hz):
+        y = (x * np.exp(-2j * np.pi * (f_if_hz + fd) * t)).reshape(blocks, n).sum(axis=1)
+        p = np.sum(np.abs(y) ** 2)
+        if best is None or p > best[0]:
+            best = (p, fd)
+    return AcqResult(acq.prn, acq.detected, float(best[1]), acq.code_phase_chips,
+                     acq.code_phase_samples, acq.metric)
