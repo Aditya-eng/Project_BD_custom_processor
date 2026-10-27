@@ -82,6 +82,10 @@ GAL_E5AI = SignalSpec("Galileo E5a-I", lambda p: gal.e5_code(p, "aI"), gal.E5_LE
                       gal.E5_CHIP_RATE, gal.E5A_FREQ, secondary_fn=gal.e5ai_secondary)
 GAL_E5AQ = SignalSpec("Galileo E5a-Q", lambda p: gal.e5_code(p, "aQ"), gal.E5_LEN,
                       gal.E5_CHIP_RATE, gal.E5A_FREQ, pilot=True, secondary_fn=gal.e5aq_secondary)
+GAL_E5BI = SignalSpec("Galileo E5b-I", lambda p: gal.e5_code(p, "bI"), gal.E5_LEN,
+                      gal.E5_CHIP_RATE, gal.E5B_FREQ, secondary_fn=gal.e5bi_secondary)
+GAL_E5BQ = SignalSpec("Galileo E5b-Q", lambda p: gal.e5_code(p, "bQ"), gal.E5_LEN,
+                      gal.E5_CHIP_RATE, gal.E5B_FREQ, pilot=True, secondary_fn=gal.e5bq_secondary)
 
 
 def replica(spec: SignalSpec, prn: int, n: int, fs_hz: float, chip0: float = 0.0) -> np.ndarray:
