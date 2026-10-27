@@ -87,6 +87,7 @@ The VC709 has one HPC FMC (J35) at a fixed 1.8 V VADJ (likely, board listings), 
 | Taps | E = chip + carry(frac + D), L = chip − (frac < D), P = chip; D = `half_spacing` in chips·2³² (E−L spacing = 2D) |
 | Code memory | 1 bit per chip, written by the host or `gps_ca_gen`, logic 0 → +1 |
 | BOC(1,1) mode | Per channel (MODE register): each tap's code bit is XORed with bit 31 of that tap's fractional phase (frac+D, frac, frac−D). CBOC(6,1,1/11) signals (Galileo E1) are tracked with this BOC(1,1) replica. The loss is 20·log10(√(10/11)) ≈ 0.4 dB (analytical), consistent with the simulated E1-C C/N0 (T1.5). GPS L1CP (TMBOC(6,1,4/33)) tracked with the same replica loses about 1.1 dB (29/33 of the chips correlate), also confirmed in simulation |
+| TDM mode | Per channel (MODE bits 1–2): a tap contributes 0 unless bit 31 of its own fractional phase equals the slot bit. GPS L2C chip-multiplexes CM and CL at 1.023 MHz; a channel tracks CM (10230 chips in code memory, 511.5 kHz code NCO) with slot 0. Correlation is a triangle of half-width ½ chip, so the DLL gain is (½ − D) per unit (E−L)/(E+L) (D < ½). CM carries half the L2C power (−3 dB, confirmed in simulation, T1.5) |
 | Dump | On the chip wrap code_len−1 → 0, the six 32-bit accumulators (including this sample) are output and cleared; `epoch_cnt` increments |
 | Measurement latch | On `tic` with a valid sample: carrier phase, cycle count, code fraction, chip index, epoch count — the raw material for pseudorange and carrier-phase observables, latched in the same sample on every channel |
 | Load | Sets NCO state and clears accumulators; an epoch that ended just before the load is still dumped |
@@ -95,6 +96,7 @@ The VC709 has one HPC FMC (J35) at a fixed 1.8 V VADJ (likely, board listings), 
 Secondary (overlay) codes are wiped off on the host, which receives one dump per primary epoch (implemented for GPS L5: `signals.secondary_sync`). Data + pilot pairs use two channels commanded in lockstep by the host.
 
 Still to add to the channel, each with its own bit-exact test:
+- an LFSR code-generator source for codes too long for the 16384-chip memory: GPS L2 CL (767250 chips, 27-stage modular SRG, `bdmodel/gps_l2c.py`) and, later, P(Y)-length codes. Until then L2C is tracked on CM only (CL is a pilot with 3 dB more power and allows long coherent integration);
 - programmable integration length (1–20 ms) for weak signals, which will then need secondary-code wipe-off in hardware;
 - very-early/very-late taps for multipath monitoring.
 

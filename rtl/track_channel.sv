@@ -23,6 +23,8 @@ module track_channel #(
     input  wire        [31:0]       half_spacing,   // D, chips * 2^32
     input  wire        [CODE_AW:0]  code_len,
     input  wire                     boc,            // BOC(1,1): XOR taps with their subcarrier phase
+    input  wire                     tdm,            // time-multiplexed code: tap counts in one half-chip only
+    input  wire                     tdm_slot,       // the half that counts (0: first, 1: second)
 
     // Load: sets NCO state, clears accumulators, epoch counter and pipeline
     input  wire                     load,
@@ -70,8 +72,9 @@ module track_channel #(
 
     wire        e_adv   = code_frac > ~half_spacing;   // carry of code_frac + D
     wire        l_dec   = code_frac < half_spacing;
-    // Sine-phased BOC(1,1): the subcarrier is the MSB of each tap's own fractional phase.
-    /* verilator lint_off UNUSEDSIGNAL */   // only bit 31 is the subcarrier
+    // Sine-phased BOC(1,1) subcarrier and the TDM half-chip are both the MSB of
+    // each tap's own fractional phase.
+    /* verilator lint_off UNUSEDSIGNAL */   // only bit 31 is used
     wire [31:0] e_frac  = code_frac + half_spacing;
     wire [31:0] l_frac  = code_frac - half_spacing;
     /* verilator lint_on UNUSEDSIGNAL */
@@ -95,6 +98,7 @@ module track_channel #(
     reg                     b_valid, b_dump;
     reg signed [PROD_W-1:0] b_i, b_q;
     reg                     b_e, b_p, b_l;
+    reg                     b_ze, b_zp, b_zl;   // tap gated off (TDM mode)
 
     always @(posedge clk) begin
         meas_valid <= 1'b0;
@@ -115,6 +119,9 @@ module track_channel #(
                 b_e <= code_mem[e_idx]    ^ (boc & e_frac[31]);
                 b_p <= code_mem[chip_idx] ^ (boc & code_frac[31]);
                 b_l <= code_mem[l_idx]    ^ (boc & l_frac[31]);
+                b_ze <= tdm & (e_frac[31]    ^ tdm_slot);
+                b_zp <= tdm & (code_frac[31] ^ tdm_slot);
+                b_zl <= tdm & (l_frac[31]    ^ tdm_slot);
 
                 if (tic) begin
                     meas_valid       <= 1'b1;
@@ -141,12 +148,12 @@ module track_channel #(
 
     wire signed [ACC_W-1:0] xi = {{(ACC_W-PROD_W){b_i[PROD_W-1]}}, b_i};
     wire signed [ACC_W-1:0] xq = {{(ACC_W-PROD_W){b_q[PROD_W-1]}}, b_q};
-    wire signed [ACC_W-1:0] ie_n = acc_ie + (b_e ? -xi : xi);
-    wire signed [ACC_W-1:0] qe_n = acc_qe + (b_e ? -xq : xq);
-    wire signed [ACC_W-1:0] ip_n = acc_ip + (b_p ? -xi : xi);
-    wire signed [ACC_W-1:0] qp_n = acc_qp + (b_p ? -xq : xq);
-    wire signed [ACC_W-1:0] il_n = acc_il + (b_l ? -xi : xi);
-    wire signed [ACC_W-1:0] ql_n = acc_ql + (b_l ? -xq : xq);
+    wire signed [ACC_W-1:0] ie_n = acc_ie + (b_ze ? 0 : b_e ? -xi : xi);
+    wire signed [ACC_W-1:0] qe_n = acc_qe + (b_ze ? 0 : b_e ? -xq : xq);
+    wire signed [ACC_W-1:0] ip_n = acc_ip + (b_zp ? 0 : b_p ? -xi : xi);
+    wire signed [ACC_W-1:0] qp_n = acc_qp + (b_zp ? 0 : b_p ? -xq : xq);
+    wire signed [ACC_W-1:0] il_n = acc_il + (b_zl ? 0 : b_l ? -xi : xi);
+    wire signed [ACC_W-1:0] ql_n = acc_ql + (b_zl ? 0 : b_l ? -xq : xq);
 
     // A sample already in stage B when `load` arrives still completes (so an
     // epoch that ended just before the load is still dumped); `load` then

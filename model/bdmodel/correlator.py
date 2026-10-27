@@ -12,6 +12,8 @@ Per accepted sample, using the channel state *before* the update:
   tap value  = code bit of the tap's chip, XOR (BOC(1,1) mode only) bit 31 of
                the tap's fractional phase: frac+D (E), frac (P), frac-D (L), mod 2^32
   each accumulator += sign(tap value) * (I or Q)
+  TDM mode: a tap whose fractional-phase bit 31 differs from tdm_slot adds 0
+  (time-multiplexed codes such as GPS L2 CM/CL: one code per half chip)
 then the state advances:
   carr_phase += carr_fcw (signed, mod 2^32); carr_cycles += wrap direction
   code_frac  += code_fcw (unsigned, mod 2^32); chip += carry (mod code_len)
@@ -82,6 +84,8 @@ class TrackChannel:
     epoch_cnt: int = 0
     sample_count: int = 0
     boc: bool = False                 # sine-phased BOC(1,1) subcarrier on the replica
+    tdm: bool = False                 # replica present in one half of each chip only
+    tdm_slot: int = 0                 # that half: 0 first, 1 second
     acc: np.ndarray = field(default_factory=lambda: np.zeros(6, dtype=np.int64))
 
     def __post_init__(self):
@@ -131,6 +135,10 @@ class TrackChannel:
             e_s = e_s * (1 - 2 * (((frac + self.half_spacing) & M32) >> 31))
             p_s = p_s * (1 - 2 * (frac >> 31))
             l_s = l_s * (1 - 2 * (((frac - self.half_spacing) & M32) >> 31))
+        if self.tdm:
+            e_s = e_s * ((((frac + self.half_spacing) & M32) >> 31) == self.tdm_slot)
+            p_s = p_s * ((frac >> 31) == self.tdm_slot)
+            l_s = l_s * ((((frac - self.half_spacing) & M32) >> 31) == self.tdm_slot)
         epoch_of = chip_abs // L
         chip_abs_next = self.chip_idx + ((self.code_frac + n1 * self.code_fcw) >> 32)
         is_last = (chip_abs_next // L) > epoch_of
