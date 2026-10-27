@@ -49,6 +49,11 @@ def generate(components, fe: FrontEnd, duration_s, seed=1, chunk=1 << 20):
                 sc6 = np.where(np.floor(frac * 12).astype(np.int64) % 2 == 0, 1.0, -1.0)
                 a, b = np.sqrt(10 / 11), np.sqrt(1 / 11)
                 v = v * (a * sc1 + (b if spec.cboc == "+" else -b) * sc6)
+            elif spec.tmboc:
+                # TMBOC(6,1,4/33): chips with index mod 33 in {0,4,6,29} carry BOC(6,1)
+                sc6 = np.where(np.floor(frac * 12).astype(np.int64) % 2 == 0, 1.0, -1.0)
+                idx = np.floor(chips).astype(np.int64) % spec.code_len
+                v = v * np.where(np.isin(idx % 33, (0, 4, 6, 29)), sc6, sc1)
             elif spec.boc11:
                 v = v * sc1
             epoch = (np.floor(chips / spec.code_len)

@@ -11,6 +11,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from . import galileo as gal
+from . import gps_l1c as l1c
 from .gps_ca import CA_CHIP_RATE, CA_LEN, L1_FREQ, ca_code
 from .gps_l5 import L5_CHIP_RATE, L5_FREQ, L5_LEN, NH10, NH20, l5_code
 
@@ -27,6 +28,7 @@ class SignalSpec:
     pilot: bool = False                       # no data modulation
     secondary_fn: Optional[Callable[[int], tuple]] = None   # per-PRN overlay (overrides `secondary`)
     cboc: Optional[str] = None                # simulation only: '+'/'-' CBOC(6,1,1/11) as broadcast
+    tmboc: bool = False                       # simulation only: GPS L1CP TMBOC(6,1,4/33) as broadcast
 
     def code(self, prn: int) -> np.ndarray:
         return _code_cached(self.name, prn, self.code_fn)
@@ -49,6 +51,13 @@ GPS_L5I = SignalSpec("GPS L5-I", lambda p: l5_code(p, "I"), L5_LEN, L5_CHIP_RATE
                      secondary=tuple(int(b) for b in NH10))
 GPS_L5Q = SignalSpec("GPS L5-Q", lambda p: l5_code(p, "Q"), L5_LEN, L5_CHIP_RATE, L5_FREQ,
                      secondary=tuple(int(b) for b in NH20), pilot=True)
+
+# GPS L1C (IS-GPS-800J): 10 ms codes; tracked with a BOC(1,1) replica.
+GPS_L1CP = SignalSpec("GPS L1CP", lambda p: l1c.l1c_code(p, "P"), l1c.L1C_LEN, l1c.L1C_CHIP_RATE,
+                      l1c.L1C_FREQ, boc11=True, tmboc=True, pilot=True,
+                      secondary_fn=l1c.l1co_overlay)
+GPS_L1CD = SignalSpec("GPS L1CD", lambda p: l1c.l1c_code(p, "D"), l1c.L1C_LEN, l1c.L1C_CHIP_RATE,
+                      l1c.L1C_FREQ, boc11=True)
 
 # Galileo (OS SIS ICD). E1 is broadcast as CBOC(6,1,1/11) and tracked with a BOC(1,1) replica.
 GAL_E1B = SignalSpec("Galileo E1-B", lambda p: gal.e1_code(p, "B"), gal.E1_LEN, gal.E1_CHIP_RATE,
