@@ -10,6 +10,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
+from . import bds_b1i as b1i
 from . import galileo as gal
 from . import gps_l1c as l1c
 from . import gps_l2c as l2c
@@ -68,6 +69,10 @@ GPS_L2CM = SignalSpec("GPS L2 CM", lambda p: l2c.l2c_code(p, "M"), l2c.CM_LEN, l
 GPS_L2CL = SignalSpec("GPS L2 CL", lambda p: l2c.l2c_code(p, "L"), l2c.CL_LEN, l2c.L2C_CHIP_RATE,
                       l2c.L2_FREQ, tdm_slot=1, pilot=True)
 
+# BeiDou B1I (BDS-SIS-ICD-B1I-3.0): NH20 on MEO/IGSO (D1, 50 bps); GEO (D2, 500 bps) has none.
+BDS_B1I = SignalSpec("BDS B1I", b1i.b1i_code, b1i.B1I_LEN, b1i.B1I_CHIP_RATE, b1i.B1I_FREQ,
+                     secondary_fn=b1i.b1i_secondary)
+
 # Galileo (OS SIS ICD). E1 is broadcast as CBOC(6,1,1/11) and tracked with a BOC(1,1) replica.
 GAL_E1B = SignalSpec("Galileo E1-B", lambda p: gal.e1_code(p, "B"), gal.E1_LEN, gal.E1_CHIP_RATE,
                      gal.E1_FREQ, boc11=True, cboc="+")
@@ -96,6 +101,10 @@ def secondary_sync(prompt_i, spec: SignalSpec, start=0, prn=None):
 
     Returns the offset k such that epoch n carries secondary bit (n + k) % len,
     or None if the match is not unanimous.
+
+    Each whole secondary period is scored on its own and the magnitudes averaged,
+    so data bits aligned with the secondary period (GPS L5-I, Galileo E5a-I,
+    BeiDou D1) may flip the sign from one period to the next.
     """
     code = spec.secondary_code(prn)
     if code is None:
@@ -103,14 +112,14 @@ def secondary_sync(prompt_i, spec: SignalSpec, start=0, prn=None):
     sec = 1 - 2 * np.array(code)
     s = np.sign(np.asarray(prompt_i[start:], dtype=np.float64))
     L = len(sec)
-    m = (len(s) // L) * L
-    if m < 2 * L:
+    if len(s) < 2 * L:
         return None
-    s = s[:m]
     best = None
     for k in range(L):
-        ref = np.tile(np.roll(sec, -k), m // L)
-        score = abs(np.mean(s * ref))
+        j = (-k) % L                      # first epoch of a secondary period
+        n = (len(s) - j) // L             # >= 1 whole period, since len(s) >= 2L
+        rows = s[j:j + n * L].reshape(n, L)
+        score = np.mean(np.abs(rows @ sec)) / L
         if best is None or score > best[0]:
             best = (score, k)
     if best[0] < 0.95:
