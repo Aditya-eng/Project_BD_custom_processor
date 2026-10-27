@@ -17,7 +17,10 @@ class AcqResult:
 
 
 def acquire(samples, prn, fs_hz, f_if_hz, doppler_max_hz=5000.0, doppler_step_hz=250.0,
-            coherent_ms=1, noncoherent=8, threshold=2.5, spec: SignalSpec = GPS_L1CA):
+            coherent_ms=1, noncoherent=8, threshold=2.5, spec: SignalSpec = GPS_L1CA,
+            doppler_center_hz=0.0):
+    """Search +/-doppler_max_hz around doppler_center_hz (aiding, e.g. from L1 C/A
+    of the same satellite, narrows the search for long codes such as L1C)."""
     spc = fs_hz * spec.epoch_s * coherent_ms   # samples per coherent block
     n = int(round(spc))
     need = n * noncoherent
@@ -28,7 +31,8 @@ def acquire(samples, prn, fs_hz, f_if_hz, doppler_max_hz=5000.0, doppler_step_hz
 
     code_fft_conj = np.conj(np.fft.fft(replica(spec, prn, n, fs_hz)))
 
-    dopplers = np.arange(-doppler_max_hz, doppler_max_hz + doppler_step_hz / 2, doppler_step_hz)
+    dopplers = doppler_center_hz + np.arange(-doppler_max_hz, doppler_max_hz + doppler_step_hz / 2,
+                                             doppler_step_hz)
     surface = np.zeros((len(dopplers), n))
     for di, fd in enumerate(dopplers):
         lo = np.exp(-2j * np.pi * (f_if_hz + fd) * t)

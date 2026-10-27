@@ -15,6 +15,9 @@ No licence is granted yet: **all rights reserved by the project owner**. The own
 5. Interface specifications (IS-GPS-200/705/800, Galileo OS SIS ICD, BDS ICDs, IRNSS SPS ICD, QZSS IS-QZSS, RTCM 10403.x, NMEA 0183, RINEX) are implemented from the documents themselves.
    - ICD tables enter the repo only through an importer in `tools/` that parses a text extraction of the official document and cross-checks every row before writing. The ICD PDFs are not stored in the repo.
    - GPS L5: `tools/import_is705.py`, from IS-GPS-705J (01-AUG-2022), downloaded from gps.gov via the project owner's Apify web-fetch connector (this environment's network policy blocks gps.gov).
+   - GPS L1C: `tools/import_is800.py`, from the IS-GPS-800J PDF (01-AUG-2022, SHA-256 `c4aad710…5d0a`), via the same connector.
+     - Cross-checks: the Legendre sequence against Table 6.2-1; all 126 codes against their printed first and last 24 chips; all 63 overlays against their final 11 bits.
+     - **ICD typo:** Table 3.2-2 sheet 2 prints PRN "3" for the row between 37 and 39. This is visible on the rendered page. The row is handled as PRN 38 by an explicit, asserted rule.
    - Galileo: `tools/import_galileo_icd.py`, from the Galileo OS SIS ICD Issue 2.2 (November 2025), PDF SHA-256 `1ca51b26…4671`, downloaded from gsc-europa.eu via the same connector. The codes come from the PDF's electronic Annex C attachments plus its tables. The importer checks that all 200 E5 codes generated from the ICD tables equal the attachments, chip for chip.
 
 ## Galileo OS SIS ICD authorisation (Annex H)
