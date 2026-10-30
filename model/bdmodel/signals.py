@@ -11,6 +11,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from . import bds_b1i as b1i
+from . import bds_b2a as b2a
 from . import galileo as gal
 from . import gps_l1c as l1c
 from . import gps_l2c as l2c
@@ -72,6 +73,13 @@ GPS_L2CL = SignalSpec("GPS L2 CL", lambda p: l2c.l2c_code(p, "L"), l2c.CL_LEN, l
 # BeiDou B1I (BDS-SIS-ICD-B1I-3.0): NH20 on MEO/IGSO (D1, 50 bps); GEO (D2, 500 bps) has none.
 BDS_B1I = SignalSpec("BDS B1I", b1i.b1i_code, b1i.B1I_LEN, b1i.B1I_CHIP_RATE, b1i.B1I_FREQ,
                      secondary_fn=b1i.b1i_secondary)
+
+# BeiDou B2a (BDS-SIS-ICD-B2a-1.0): data (200 sps, 5-bit 00010) in phase, pilot in quadrature.
+BDS_B2A_D = SignalSpec("BDS B2a data", lambda p: b2a.b2a_code(p, "D"), b2a.B2A_LEN,
+                       b2a.B2A_CHIP_RATE, b2a.B2A_FREQ, secondary_fn=b2a.data_secondary)
+BDS_B2A_P = SignalSpec("BDS B2a pilot", lambda p: b2a.b2a_code(p, "P"), b2a.B2A_LEN,
+                       b2a.B2A_CHIP_RATE, b2a.B2A_FREQ, pilot=True,
+                       secondary_fn=b2a.pilot_secondary)
 
 # Galileo (OS SIS ICD). E1 is broadcast as CBOC(6,1,1/11) and tracked with a BOC(1,1) replica.
 GAL_E1B = SignalSpec("Galileo E1-B", lambda p: gal.e1_code(p, "B"), gal.E1_LEN, gal.E1_CHIP_RATE,
