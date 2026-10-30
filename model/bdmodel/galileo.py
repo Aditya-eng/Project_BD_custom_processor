@@ -82,3 +82,14 @@ def e5ai_secondary(prn: int) -> tuple:
 
 def e5aq_secondary(prn: int) -> tuple:
     return secondary(100, prn)
+
+
+def e5bi_secondary(prn: int) -> tuple:
+    return secondary(4, 1)
+
+
+def e5bq_secondary(prn: int) -> tuple:
+    return secondary(100, prn + 50)        # CS100(n+50) for SVID n (ICD section 3.6)
+
+
+E5BI_EPOCHS_PER_SYMBOL = 4                 # 250 sps (Table 5): one CS4 period per symbol

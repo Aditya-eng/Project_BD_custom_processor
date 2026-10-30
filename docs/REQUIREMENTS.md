@@ -20,7 +20,7 @@
 | REQ-SIG-004 | Track QZSS L1 C/A, L1C, L2C, L5; SBAS (GAGAN/others) L1 | P | These come at near-zero cost, since they use the same bands and code families. |
 | REQ-SIG-005 | Track NavIC L5 SPS (BPSK(1), 1176.45 MHz) | P | Regional system, useful in India; same RF path as L5. |
 | REQ-SIG-006 | Track GLONASS G1 C/A (FDMA) | P | Adds availability; G2 is deferred because the chosen front-end frequency plan cannot hold L5, L2 and G2 on one LO (see ARCHITECTURE §3). |
-| REQ-SIG-010 | GLONASS G2/L3, Galileo E5b/AltBOC/E6 (HAS), BeiDou B2b/B3, QZSS L6, SBAS L5 | F | Deferred to v2. Galileo E6 HAS is the planned **free substitute for Trimble RTX** PPP. |
+| REQ-SIG-010 | GLONASS G2/L3, Galileo E5b/AltBOC/E6 (HAS), BeiDou B2b/B3, QZSS L6, SBAS L5 | F | Deferred to v2. E5b has model support, but the v1 frequency plan cannot receive it without dropping L2C (ARCHITECTURE §3). Galileo E6 HAS is the planned **free substitute for Trimble RTX** PPP. |
 | REQ-SIG-011 | Trimble RTX, OmniSTAR, CMR/CMR+ | — | **Excluded.** Proprietary/subscription services; see LICENSES.md and CLEAN_ROOM.md. |
 
 ## 2. Capacity and acquisition

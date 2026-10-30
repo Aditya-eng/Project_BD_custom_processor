@@ -66,6 +66,15 @@ The NT1065 pairs channels 1–2 on PLL A and 3–4 on PLL B (likely, vendor mate
 - Lower-sideband paths are spectrally inverted. Host software applies `carr_fcw = IF − Doppler` for them.
 - **fs = 79.5 MHz = 1590 MHz / 20** (provisional). It must exceed 2 × 33.8 MHz = 67.6 MHz, the top of the highest IF band. It is also non-commensurate with 1.023 and 10.23 Mcps (77.71 and 7.771 samples per chip), which avoids code-phase dead zones. The final value is whatever the NT1068 clock dividers can produce near 80 MHz. The RTL works for any fs ≤ ~125 MHz unchanged.
 - GLONASS G2 (1242–1249 MHz) does not fit with LO B = 1200 MHz alongside L5. That is why REQ-SIG-006 keeps G1 only.
+- **Galileo E5b / BDS B2I / B2b (1207.14 MHz) are not receivable with this plan.** Their main lobe (1196.9–1217.4 MHz) straddles LO B = 1200 MHz: on P4 about 3 MHz of it folds across DC, and P3 rejects it. The options are below (model support for E5b exists, T1.5, but it stays REQ-SIG-010 until this is decided):
+
+| LO B | P3 (lower): L5/E5a/B2a IF | P4 (upper): E5b IF | P4: L2C IF | Result |
+|---|---|---|---|---|
+| 1200.0 (current) | 13.3–33.8 MHz | −3.1–17.4 (folds across DC) | 26.6–28.6 | L2C yes, E5b no |
+| 1191.795 (E5 centre) | 5.1–25.6 | 5.1–25.6 | 34.8–36.8 (outside the ~31 MHz IF filter) | E5b yes, **L2C lost** |
+| 1196.5 | 9.8–30.3 | 0.4–20.9 (lobe edge at DC) | 30.1–32.1 (straddles the filter edge) | both degraded; not recommended |
+
+  With two LOs for four channels, E5b costs L2C. Recommendation: keep L2C in v1 (GPS L1/L2 is what most reference stations and RTK networks provide); revisit with a second front end or an NT1068 configuration that frees a channel (RISKS R2: datasheet not yet read).
 
 ### Connection to the VC709
 
