@@ -45,6 +45,7 @@ def generate(components, fe: FrontEnd, duration_s, seed=1, chunk=1 << 20):
             v = 1.0 - 2.0 * spec.code(c.prn)[np.floor(chips).astype(np.int64) % spec.code_len]
             frac = chips % 1.0
             sc1 = np.where(frac < 0.5, 1.0, -1.0)                 # sine BOC(1,1)
+            v_other = None                                        # part on the other carrier
             if spec.cboc:
                 # CBOC(6,1,1/11): alpha*BOC(1,1) +/- beta*BOC(6,1), 12 half-periods per chip
                 sc6 = np.where(np.floor(frac * 12).astype(np.int64) % 2 == 0, 1.0, -1.0)
@@ -55,6 +56,12 @@ def generate(components, fe: FrontEnd, duration_s, seed=1, chunk=1 << 20):
                 sc6 = np.where(np.floor(frac * 12).astype(np.int64) % 2 == 0, 1.0, -1.0)
                 idx = np.floor(chips).astype(np.int64) % spec.code_len
                 v = v * np.where(np.isin(idx % 33, (0, 4, 6, 29)), sc6, sc1)
+            elif spec.qmboc:
+                # QMBOC(6,1,4/33) (BDS B1C pilot): BOC(1,1) with 29/33 of the power on this
+                # carrier, BOC(6,1) with 4/33 on the orthogonal one.
+                sc6 = np.where(np.floor(frac * 12).astype(np.int64) % 2 == 0, 1.0, -1.0)
+                v_other = v * sc6 * np.sqrt(4 / 33)
+                v = v * sc1 * np.sqrt(29 / 33)
             elif spec.boc11:
                 v = v * sc1
             if spec.tdm_slot is not None:
@@ -63,15 +70,19 @@ def generate(components, fe: FrontEnd, duration_s, seed=1, chunk=1 << 20):
                 v = v * ((frac >= 0.5) == spec.tdm_slot)
             epoch = (np.floor(chips / spec.code_len)
                      - np.floor(c.code_phase_chips / spec.code_len)).astype(np.int64)
+            mod = np.ones(len(t))
             sec_code = spec.secondary_code(c.prn)
             if sec_code is not None:
                 sec = 1.0 - 2.0 * np.array(sec_code)
-                v = v * sec[(epoch + c.secondary_offset) % len(sec)]
+                mod = mod * sec[(epoch + c.secondary_offset) % len(sec)]
             if c.data is not None:
                 sym = (epoch + c.symbol_offset) // c.epochs_per_symbol
-                v = v * c.data[np.clip(sym, 0, len(c.data) - 1)]
+                mod = mod * c.data[np.clip(sym, 0, len(c.data) - 1)]
             amp = 2.0 * np.sqrt(10 ** (c.cn0_dbhz / 10) / fe.fs_hz)
             ph = 2 * np.pi * ((fe.f_if_hz + c.doppler_hz) * t + c.carrier_phase_cycles)
-            x += amp * v * (-np.sin(ph) if c.quadrature else np.cos(ph))
+            cos_, msin = np.cos(ph), -np.sin(ph)
+            x += amp * mod * v * (msin if c.quadrature else cos_)
+            if v_other is not None:
+                x += amp * mod * v_other * (cos_ if c.quadrature else msin)
         out[start:start + len(t)] = _quantize(x, fe)
     return out
