@@ -102,6 +102,8 @@ The VC709 has one HPC FMC (J35) at a fixed 1.8 V VADJ (likely, board listings), 
 | Load | Sets NCO state and clears accumulators; an epoch that ended just before the load is still dumped |
 | Pipeline | 3 stages (taps → products → accumulate) |
 
+GLONASS G1 is FDMA: every satellite sends the same 511-chip code on its own carrier, 1602 + 0.5625k MHz (k = −7…+6). On path P2 the IF is 12 + 0.5625k MHz. A channel tracks frequency number k by its carrier FCW alone (host software adds the k offset to the IF); no RTL change. Every channel tracking GLONASS loads the same code.
+
 Secondary (overlay) codes are wiped off on the host, which receives one dump per primary epoch (`signals.secondary_sync`; GPS L5, Galileo E1-C/E5a, GPS L1CO, BeiDou B1I D1). Sync scores each secondary period separately, so data bits aligned with the period do not defeat it.
 
 BeiDou B1I (P1, 2.046 Mcps, 2046 chips) uses the plain BPSK channel; no RTL change. Its broadcast codes are Gold codes truncated by one chip, which raises the worst cross-correlation to −19.8 dB (measured, T0.17) from −30 dB. A strong B1I satellite can therefore produce false peaks for a satellite ~20 dB weaker; acquisition must cancel or check detections against strong satellites already tracked. Data + pilot pairs use two channels commanded in lockstep by the host.

@@ -167,6 +167,21 @@ def bit_sync(ip_history, min_transitions=10, start=0):
     return best
 
 
+def symbol_phase(prompt_i, epochs_per_bit: int, start: int = 0) -> int:
+    """Epoch offset k (0..epochs_per_bit-1) such that data bits start at epochs n with
+    (n + k) % epochs_per_bit == 0: the alignment whose per-bit sums carry the most
+    energy (sign flips inside a misaligned bit cancel). For symbols without a secondary
+    code to sync on: BeiDou D2 (2 ms), GLONASS meander/time-mark symbols (10 ms)."""
+    ip = np.asarray(prompt_i[start:], dtype=np.float64)
+    best = None
+    for j in range(epochs_per_bit):
+        m = (len(ip) - j) // epochs_per_bit
+        e = np.abs(ip[j:j + m * epochs_per_bit].reshape(m, epochs_per_bit).sum(axis=1)).mean()
+        if best is None or e > best[0]:
+            best = (e, j)
+    return (-(start + best[1])) % epochs_per_bit
+
+
 def cn0_m2m4(ip, qp, T=1e-3):
     """Moment-method C/N0 estimate (dB-Hz) from prompt correlator outputs."""
     p = np.asarray(ip, dtype=np.float64) ** 2 + np.asarray(qp, dtype=np.float64) ** 2
