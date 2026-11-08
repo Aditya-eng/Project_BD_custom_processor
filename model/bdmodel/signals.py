@@ -14,6 +14,7 @@ from . import bds_b1c as b1c
 from . import bds_b1i as b1i
 from . import bds_b2a as b2a
 from . import galileo as gal
+from . import glonass as glo
 from . import gps_l1c as l1c
 from . import gps_l2c as l2c
 from .gps_ca import CA_CHIP_RATE, CA_LEN, L1_FREQ, ca_code
@@ -104,6 +105,14 @@ GAL_E5BI = SignalSpec("Galileo E5b-I", lambda p: gal.e5_code(p, "bI"), gal.E5_LE
                       gal.E5_CHIP_RATE, gal.E5B_FREQ, secondary_fn=gal.e5bi_secondary)
 GAL_E5BQ = SignalSpec("Galileo E5b-Q", lambda p: gal.e5_code(p, "bQ"), gal.E5_LEN,
                       gal.E5_CHIP_RATE, gal.E5B_FREQ, pilot=True, secondary_fn=gal.e5bq_secondary)
+
+
+@lru_cache(maxsize=None)
+def glonass_g1(k: int) -> SignalSpec:
+    """GLONASS G1 on frequency number k: one shared ranging code, carrier 1602 + 0.5625 k MHz.
+    The PRN argument of code() is ignored (FDMA)."""
+    return SignalSpec(f"GLONASS G1 k={k:+d}", lambda prn: glo.ranging_code(), glo.CODE_LEN,
+                      glo.CHIP_RATE, glo.carrier_hz(k))
 
 
 def replica(spec: SignalSpec, prn: int, n: int, fs_hz: float, chip0: float = 0.0) -> np.ndarray:

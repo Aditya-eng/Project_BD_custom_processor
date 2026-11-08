@@ -80,14 +80,6 @@ def epochs_per_bit(prn: int) -> int:
 
 
 def bit_phase(prompt_i, epochs_per_bit: int, start: int = 0) -> int:
-    """Epoch offset k (0..epochs_per_bit-1) such that data bits start at epochs n with
-    (n + k) % epochs_per_bit == 0: the alignment whose per-bit sums carry the most
-    energy (sign flips inside a misaligned bit cancel). For D2 (2 ms bits, no NH code)."""
-    ip = np.asarray(prompt_i[start:], dtype=np.float64)
-    best = None
-    for j in range(epochs_per_bit):
-        m = (len(ip) - j) // epochs_per_bit
-        e = np.abs(ip[j:j + m * epochs_per_bit].reshape(m, epochs_per_bit).sum(axis=1)).mean()
-        if best is None or e > best[0]:
-            best = (e, j)
-    return (-(start + best[1])) % epochs_per_bit
+    """D2 bit phase (2 ms bits, no NH code): see tracking.symbol_phase."""
+    from .tracking import symbol_phase      # tracking imports signals, which imports this module
+    return symbol_phase(prompt_i, epochs_per_bit, start)
