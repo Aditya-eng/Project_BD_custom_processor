@@ -20,6 +20,8 @@ from functools import lru_cache
 
 import numpy as np
 
+from . import weil
+
 B2A_FREQ = 1176.45e6
 B2A_CHIP_RATE = 10.23e6
 B2A_LEN = 10230
@@ -52,20 +54,13 @@ def primary(component: str, init2: str, n: int = B2A_LEN) -> np.ndarray:
     return out
 
 
-@lru_cache(maxsize=None)
 def legendre(n: int = WEIL_N) -> np.ndarray:
-    seq = np.zeros(n, dtype=np.uint8)
-    seq[(np.arange(1, n, dtype=np.int64) ** 2) % n] = 1
-    seq[0] = 0
-    return seq
+    return weil.legendre(n)
 
 
 def weil_truncated(w: int, p: int, n0: int = PILOT_SECONDARY_LEN, n: int = WEIL_N) -> tuple:
-    """c(k) = W((k + p - 1) mod N; w), W(k; w) = L(k) xor L((k + w) mod N) (eq. 5-3..5-5)."""
-    L = legendre(n)
-    k = np.arange(n0)
-    idx = (k + p - 1) % n
-    return tuple(int(b) for b in L[idx] ^ L[(idx + w) % n])
+    """Pilot secondary code (eqs. 5-3..5-5): see bdmodel/weil.py."""
+    return tuple(int(b) for b in weil.weil_truncated(w, p, n0, n))
 
 
 @lru_cache(maxsize=None)

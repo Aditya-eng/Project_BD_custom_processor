@@ -10,6 +10,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
+from . import bds_b1c as b1c
 from . import bds_b1i as b1i
 from . import bds_b2a as b2a
 from . import galileo as gal
@@ -32,6 +33,7 @@ class SignalSpec:
     secondary_fn: Optional[Callable[[int], tuple]] = None   # per-PRN overlay (overrides `secondary`)
     cboc: Optional[str] = None                # simulation only: '+'/'-' CBOC(6,1,1/11) as broadcast
     tmboc: bool = False                       # simulation only: GPS L1CP TMBOC(6,1,4/33) as broadcast
+    qmboc: bool = False                       # simulation only: BDS B1C pilot QMBOC(6,1,4/33)
     tdm_slot: Optional[int] = None            # chip-by-chip time multiplex: the half chip (0/1) this
                                               # code occupies; the replica is zero in the other half
 
@@ -73,6 +75,14 @@ GPS_L2CL = SignalSpec("GPS L2 CL", lambda p: l2c.l2c_code(p, "L"), l2c.CL_LEN, l
 # BeiDou B1I (BDS-SIS-ICD-B1I-3.0): NH20 on MEO/IGSO (D1, 50 bps); GEO (D2, 500 bps) has none.
 BDS_B1I = SignalSpec("BDS B1I", b1i.b1i_code, b1i.B1I_LEN, b1i.B1I_CHIP_RATE, b1i.B1I_FREQ,
                      secondary_fn=b1i.b1i_secondary)
+
+# BeiDou B1C (BDS-SIS-ICD-B1C-1.0): data BOC(1,1) 100 sps in phase (1/4 of the power);
+# pilot QMBOC(6,1,4/33) (3/4), tracked with a BOC(1,1) replica in quadrature.
+BDS_B1C_D = SignalSpec("BDS B1C data", lambda p: b1c.b1c_code(p, "D"), b1c.B1C_LEN,
+                       b1c.B1C_CHIP_RATE, b1c.B1C_FREQ, boc11=True)
+BDS_B1C_P = SignalSpec("BDS B1C pilot", lambda p: b1c.b1c_code(p, "P"), b1c.B1C_LEN,
+                       b1c.B1C_CHIP_RATE, b1c.B1C_FREQ, boc11=True, qmboc=True, pilot=True,
+                       secondary_fn=b1c.pilot_secondary)
 
 # BeiDou B2a (BDS-SIS-ICD-B2a-1.0): data (200 sps, 5-bit 00010) in phase, pilot in quadrature.
 BDS_B2A_D = SignalSpec("BDS B2a data", lambda p: b2a.b2a_code(p, "D"), b2a.B2A_LEN,
