@@ -28,17 +28,26 @@ def _code_from_advance(adv):
     return xa ^ xb
 
 
-def test_table_covers_prn_1_to_63():
-    assert sorted(L5_CODE_PHASES) == list(range(1, 64))
+L5_ROW64 = (7789, 5246)        # XB code advance I5, Q5
 
 
-@pytest.mark.parametrize("prn", range(1, 64))
+def test_table_covers_prn_1_to_210():
+    # Tables 3-Ia, 3-Ib (1-63) and 6-II (64-210, incl. QZSS 193-202).
+    assert sorted(L5_CODE_PHASES) == list(range(1, 211))
+
+
+def test_table_6_ii_first_row_as_printed():
+    # IS-GPS-705J Table 6-II sheet 1, PRN 64 (read off the PDF independently of the importer).
+    assert L5_CODE_PHASES[64][:2] == L5_ROW64
+
+
+@pytest.mark.parametrize("prn", range(1, 211))
 def test_advance_and_state_columns_agree(prn):
     ai, aq, si, sq = L5_CODE_PHASES[prn]
     assert xb_from_advance(ai) == si and xb_from_advance(aq) == sq
 
 
-@pytest.mark.parametrize("prn", [1, 2, 13, 24, 37, 38, 63])
+@pytest.mark.parametrize("prn", [1, 2, 13, 24, 37, 38, 63, 64, 120, 193, 202, 210])
 @pytest.mark.parametrize("comp", ["I", "Q"])
 def test_code_from_state_equals_code_from_advance(prn, comp):
     ai, aq, si, sq = L5_CODE_PHASES[prn]

@@ -7,3 +7,4 @@ tb/results.xml
 tb/*.result.xml
 sw/build/
 build/
+model/bdmodel/tables/navic_l5_table.py
