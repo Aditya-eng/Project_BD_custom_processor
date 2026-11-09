@@ -1,4 +1,4 @@
-"""Record format of the FPGA collector stream (docs/REGISTERS.md §3).
+"""Record format of the FPGA collector stream (docs/REGISTERS.md §5).
 
 Each record is 256 bits = 8 little-endian 32-bit words. Word 0:
 [31:28] type, [27:16] channel, [15:0] epoch counter.
@@ -11,6 +11,7 @@ RECORD_BYTES = 32
 
 
 class RecordType(IntEnum):
+    PAD = 0          # C2H packet filler (bd_host_if flush); carries nothing
     DUMP = 1
     MEAS = 2
 
@@ -37,9 +38,10 @@ def parse_record(value: int) -> dict:
 
 
 def parse_stream(buf: bytes):
-    """Parse a byte stream of back-to-back records as DMA delivers them."""
+    """Parse a byte stream of back-to-back records as DMA delivers them; pad records
+    (type 0) are dropped."""
     w = np.frombuffer(buf, dtype="<u4").reshape(-1, 8)
-    return [parse_words([int(x) for x in row]) for row in w]
+    return [parse_words([int(x) for x in row]) for row in w if int(row[0]) >> 28]
 
 
 def pack_dump(ch: int, d) -> bytes:

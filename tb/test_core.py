@@ -116,7 +116,7 @@ async def registers_and_timebase(dut):
     c = Core(dut)
     await c.start()
     assert await c.read(0x000) == 0x42443031
-    assert await c.read(0x004) == 0x00010000
+    assert await c.read(0x004) == 0x00020000
     assert await c.read(0x008) == NCH
     assert await c.read(0x010) == 0xDF31
     await c.write(0x00C, 1)

@@ -6,3 +6,4 @@ tb/results.xml
 *.fst
 tb/*.result.xml
 sw/build/
+build/

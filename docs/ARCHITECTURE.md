@@ -121,7 +121,13 @@ Still to add to the channel, each with its own bit-exact test:
 | `pcie_clk` (250 MHz) | XDMA user clock | DMA streams, AXI-Lite register file |
 | `ref_clk` | VC709 200 MHz system clock | MMCMs, IDELAYCTRL |
 
-Crossings: async FIFOs for sample, dump and playback streams. Control words are double-buffered in the AXI domain and moved into `fe_clk` on a toggle handshake, so `carr_fcw` and `code_fcw` change on the same sample. Reset is synchronous per domain.
+Crossings, as built in M2 (`rtl/bd_host_if.sv`):
+- **Our own gray-code async FIFOs** (`rtl/async_fifo.sv`), not vendor macros: they simulate in Icarus and carry over to an ASIC. One for H2C playback (128-bit beats, 512 deep) and one for records (256 bit, 32 deep).
+- **Registers:** `rtl/axil_bus_bridge.sv` moves one AXI-Lite transaction at a time into `fe_clk` on a toggle handshake. Control words still take effect together through the channels' shadow registers and CMD commit.
+- **Reset:** `axi_aresetn` (and MMCM lock on the board) resets both domains; the sample domain sees it through a 2-FF synchronizer.
+- **Timing constraints:** every PCIe↔sample-clock path is limited to one PCIe clock period of datapath delay (`fpga/vc709/vc709.xdc`).
+
+**VC709 clocking (M2).** The 79.5 MHz sample clock comes from an MMCM on the 200 MHz board oscillator: DIVCLK 5, CLKFBOUT 19.875, CLKOUT0 10.0 (VCO 795 MHz), so fs = 79.5 MHz exactly. In M3 the live front end's ADC clock replaces it.
 
 ## 6. Budgets
 
@@ -134,6 +140,8 @@ Crossings: async FIFOs for sample, dump and playback streams. Control words are 
 | 192 channels (all long-code capable) | ~192k (44%) | ~132k (15%) | 576 (20%) | XC7VX690T: 433,200 LUT, 866,400 FF, 2,940 BRAM18 (likely, Xilinx DS180) |
 | XDMA, FIFOs, timebase, collector, raw packer | ~30k (est.) | ~40k (est.) | ~100 (est.) | assumption |
 | **Total** | **~51%** | **~20%** | **~23%** | Leaves room for BOC, secondary codes and VE/VL taps (+~25%/channel, estimate) |
+
+**Update (M2, host interface; Yosys `synth_xilinx`, flattened, NCH = 1 difference):** `bd_host_if` adds ~1.5k LUT and ~0.7k FF of logic, plus ~2.8k LUT used as distributed RAM (mostly the 512 × 128-bit playback FIFO; a block-RAM FIFO would free these). XDMA itself is extra (Vivado IP, not estimated here).
 
 **Update (M1, full `bd_core` incl. register files, collector, timebase; Yosys):** 8 → 16 channels adds ~910 LUT and ~970 FF per channel (16 channels: 16.2k LUT, 16.6k FF). Extrapolated to 192: **~176k LUT (41%), ~187k FF (22%)**. FFs are above the per-channel estimate because each channel carries its own shadow/load register file.
 
@@ -158,7 +166,8 @@ The channel datapath has at most a 34-bit add and one LUT-RAM or BRAM read per s
 
 - Language: C++17 for the real-time daemon; Python for tools, the reference model and analysis.
 - Process: one acquisition thread pool, one tracking thread per 64 channels, one PVT/RTK thread.
-- Interfaces: XDMA character devices (`/dev/xdma0_c2h_0` samples, `_c2h_1` dumps, `_h2c_0` playback, `_user` registers).
+- Interfaces: XDMA character devices: `_user` registers (mmap), `_h2c_0` playback, `_c2h_0` records (M2). A raw-sample C2H stream (`_c2h_1`, for acquisition and the spectrum monitor on live data) comes with the M3 front-end interface.
+- Bring-up tools: `sw/tools/bd_xdma.cpp` (`info`, `rd`, `wr`, `regtest`); `tools/hw_bitexact.py` (T2.4).
 - Every algorithm in C++ has a Python twin in `model/`, and the two are cross-checked on the same inputs.
   - M1 status: the record parser and the tracking loop exist in C++ (`sw/`), and the loop is bit-identical to Python.
   - Bit-identity rules: scalar libm math only, `sqrt(i²+q²)` instead of `hypot`, `-ffp-contract=off`.
