@@ -25,6 +25,8 @@ Every test states its evidence level. A result is never promoted: simulation doe
 | T0.18 | BeiDou B2a codes against BDS-SIS-ICD-B2a-1.0: 126 primary codes reproduce their printed first/last 24 chips (at import; 4 re-checked in CI); 63 pilot secondary codes (Weil, length 1021, truncated to 100) reproduce theirs (all at import; 4 in CI); Legendre sequence = quadratic residues; data/pilot register-2 values differ for exactly PRN 61–63 (ICD text says they are equal; the tables are self-consistent); correlation sidelobes < 0.05 | **pass** (`model/tests/test_bds_b2a.py`) |
 | T0.19 | BeiDou B1C codes against BDS-SIS-ICD-B1C-1.0: the 5.2.1 worked example; 126 primary and 63 pilot secondary codes reproduce their printed first/last 24 chips (all at import; 6 re-checked in CI); Legendre lengths 10243 and 3607 prime with (N−1)/2 residues; correlation sidelobes < 0.05; 1800-bit secondary sync on synthetic prompts (wrong PRN rejected) | **pass** (`model/tests/test_bds_b1c.py`) |
 | T0.20 | GLONASS G1 against ICD 5.1: ranging code starts 111111100, is an m-sequence (two-valued autocorrelation); the reciprocal polynomial gives a different code with the same first chips; time mark = first 30 chips of g(x) = 1 + x³ + x⁵ and the 31st is the idle 0; Table 3.1 frequencies; string coding (relative code + meander + time mark) round-trips under either sign, and a broken meander is rejected | **pass** (`model/tests/test_glonass.py`; `tools/check_glonass_icd.py` against the PDF) |
+| T0.21 | `bd_host_if` (PCIe side) in two unrelated clock domains (250 MHz and 79.5 MHz-class, ratio 6289:2000): 300 random SCRATCH write/read pairs through the register crossing; bus timeout with the sample clock stopped (SLVERR, pending access refused, clean recovery); the shared T2.4 scenario (`bdmodel/hwcheck.py`: 4 channels, every channel mode, two mid-run retunes, tics) streamed over H2C with random gaps and C2H with random backpressure, every DUMP and MEAS record equal to the model; packet framing (full packets, pad flush, pads only at packet ends). AXI response ordering checked on every transaction. Sensitivity: 3/3 injected bugs caught (FIFO never full, sample order within a beat, `tlast` off by one); a fourth mutation (read data taken from `bd_core` instead of the bridge's capture register) is functionally equivalent | **pass** (`tb/test_host_if.py`) |
+| T0.22 | VC709 top-level wiring lint (`fpga/vc709/vc709_top.sv` against port stubs of the Xilinx primitives and XDMA); hardware harness dry run (scenario, byte layout, comparison) | **pass** (`make lint`, `model/tests/test_hwcheck.py`) |
 | T0.16 | TDM gate mode bit-exact: model vs scalar reference (slot 0, slot 1 combined with BOC), `track_channel` random stimulus for both, one TDM channel (slot 1) in the 4-channel `bd_core` test; 2/2 injected gate bugs caught (wrong tap phase, slot ignored) | **pass** |
 
 ## T1 — Receiver algorithms on simulated signals (CI)
@@ -42,10 +44,10 @@ Every test states its evidence level. A result is never promoted: simulation doe
 
 | Test | Pass criterion |
 |---|---|
-| T2.1 Vivado build: timing met at fs with 192 channels; utilization report archived | WNS ≥ 0 |
-| T2.2 PCIe link up, register read/write, scratch register | 10⁶ random R/W without error |
-| T2.3 Playback loopback: host streams samples → FPGA raw packer → host | bit-identical for 60 s at full rate |
-| T2.4 **Hardware bit-exactness:** synthetic and recorded files played into the FPGA; every dump and measurement equals the Python model | zero mismatches over 192 channels × 60 s |
+| T2.1 Vivado build: timing met at fs with 192 channels; utilization report archived | WNS ≥ 0. **Not run:** `fpga/vc709/build.tcl` written; needs Vivado with a 690T licence (D1) |
+| T2.2 PCIe link up, register read/write, scratch register | 10⁶ random R/W without error. **Simulated only** (T0.21); on hardware: `bd_xdma regtest 1000000` |
+| T2.3 Playback loopback: host streams samples → FPGA raw packer → host | bit-identical for 60 s at full rate. **Open:** the raw-sample packer (C2H channel 1) is not built yet |
+| T2.4 **Hardware bit-exactness:** synthetic and recorded files played into the FPGA; every dump and measurement equals the Python model | zero mismatches over 192 channels × 60 s. **Simulated only** (T0.21, same scenario); on hardware: `tools/hw_bitexact.py --nch 192`. The NumPy model is too slow for 60 s at 79.5 MS/s × 192 channels; the full-length run needs the C++ correlator twin |
 | T2.5 Closed loop with the host daemon on playback data: same tracking results as the pure-software run | observables identical |
 | T2.6 Sustained throughput: no FIFO overflow with 192 channels for 24 h | zero drops (counters) |
 

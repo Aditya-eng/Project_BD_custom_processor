@@ -69,7 +69,9 @@ The Galileo spreading codes and other ICD "Technical Data" are EU intellectual p
 | Icarus Verilog | simulator | GPL-2.0 | no (tool) | OK (tool use only) |
 | Verilator | lint/simulator | LGPL-3.0 / Artistic-2.0 | no (tool) | OK (tool use only) |
 | Yosys | early synthesis estimates | ISC | no (tool) | OK |
-| Vivado + XDMA/MIG/FIFO IP | FPGA implementation | Xilinx EULA / IP licence | bitstream only | OK for the prototype; replace for an ASIC |
+| Vivado + XDMA IP | FPGA implementation | Xilinx EULA / IP licence | bitstream only | OK for the prototype; replace for an ASIC. FIFOs and clock crossings are our own RTL |
+| Xilinx XDMA Linux driver (`dma_ip_drivers`) | host access to the FPGA | dual BSD/GPL kernel module | no (installed separately) | OK: used through its character devices only; nothing linked or copied |
+| VC709 pin locations (`fpga/vc709/vc709.xdc`) | constraints | facts taken from the Xilinx board definition (XilinxBoardStore 2023.2, `boards/Xilinx/vc709/1.8/part0_pins.xml`) | yes (as constraints) | OK: pin numbers only; the board files are not copied into the repo |
 | RTKLIB 2.4.3 | v1 RTK/PPP engine (host) | BSD-2-Clause **plus two additional clauses** (from 2.4.2; earlier versions were GPLv3) | yes | **Pending:** read the extra clauses at the pinned commit before linking; demo5 fork licence also unverified |
 | GNSS-SDR | external cross-check on recorded files only | GPL-3.0-or-later | **never** | Tool use only; no code or ports into this repo |
 | Galileo OS SIS ICD codes (`model/bdmodel/tables/galileo_*`) | E1/E5 primary and secondary codes | EU Annex H Authorisation (royalty-free, conditions above) | yes | Accepted 2026-10-26 |

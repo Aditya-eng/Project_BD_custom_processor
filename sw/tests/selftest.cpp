@@ -32,6 +32,18 @@ int main() {
     std::array<uint32_t, 8> bad{(9u << 28), 0, 0, 0, 0, 0, 0, 0};
     CHECK(!bd::parse_record(bad, r));
 
+    // A DMA buffer: dump, pad record (all zero), meas -> two records.
+    uint8_t buf[3 * bd::kRecordBytes] = {};
+    for (std::size_t i = 0; i < 8; ++i) {
+        for (std::size_t b = 0; b < 4; ++b) {
+            buf[4 * i + b] = static_cast<uint8_t>(w[i] >> (8 * b));
+            buf[2 * bd::kRecordBytes + 4 * i + b] = static_cast<uint8_t>(m[i] >> (8 * b));
+        }
+    }
+    const auto recs = bd::parse_stream(buf, sizeof buf);
+    CHECK(recs.size() == 2 && recs[0].type == bd::RecordType::Dump &&
+          recs[1].type == bd::RecordType::Meas);
+
     // FCW conversions: fs/4 -> 2^30; negative wraps; code rate at 1.023 MHz / 4 MHz.
     CHECK(bd::freq_to_fcw(1e6, 4e6) == (1 << 30));
     CHECK(bd::freq_to_fcw(-1e6, 4e6) == -(1 << 30));

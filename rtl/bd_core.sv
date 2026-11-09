@@ -2,8 +2,8 @@
 // channels and the record collector behind one register bus.
 // Register map and record format: docs/REGISTERS.md.
 //
-// The register bus runs in the sample clock domain here; the PCIe/AXI-Lite
-// bridge and clock-domain crossing are added around this core in M2.
+// The register bus runs in the sample clock domain. In the FPGA build it is driven
+// from PCIe through bd_host_if (AXI-Lite bridge and clock-domain crossings).
 module bd_core #(
     parameter integer NCH     = 4,
     parameter integer CODE_AW = 14
@@ -39,12 +39,12 @@ module bd_core #(
     input  wire         event_in
 );
     localparam [31:0] ID      = 32'h4244_3031;  // "BD01"
-    localparam [31:0] VERSION = 32'h0001_0000;  // M1
+    localparam [31:0] VERSION = 32'h0002_0000;  // M2
 
     // ---------------- Global registers ----------------
     reg         src_playback;
     reg [15:0]  fe_map;
-    reg [31:0]  tic_period, pps_period, pps_width;
+    reg [31:0]  tic_period, pps_period, pps_width, scratch;
     reg [31:0]  tic_next_lo, pps_next_lo;
     reg         tic_next_wr, pps_next_wr, overrun_clr;
     reg [63:0]  next_val;
@@ -62,6 +62,7 @@ module bd_core #(
             tic_period   <= 32'd0;
             pps_period   <= 32'd0;
             pps_width    <= 32'd0;
+            scratch      <= 32'd0;
         end else if (wr_g) begin
             case (bus_addr[11:0])
                 12'h00C: src_playback <= bus_wdata[0];
@@ -74,6 +75,7 @@ module bd_core #(
                 12'h028: pps_next_lo  <= bus_wdata;
                 12'h02C: begin next_val <= {bus_wdata, pps_next_lo}; pps_next_wr <= 1'b1; end
                 12'h04C: overrun_clr  <= bus_wdata[0];
+                12'h050: scratch      <= bus_wdata;
                 default: ;
             endcase
         end
@@ -147,6 +149,7 @@ module bd_core #(
                 12'h044: bus_rdata <= last_tic_cnt[31:0];
                 12'h048: bus_rdata <= last_tic_cnt[63:32];
                 12'h04C: bus_rdata <= {31'd0, overrun};
+                12'h050: bus_rdata <= scratch;
                 default: bus_rdata <= 32'hDEAD_BEEF;
             endcase
         end

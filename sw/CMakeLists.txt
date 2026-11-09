@@ -15,6 +15,8 @@ target_include_directories(bdhost PUBLIC include)
 add_executable(bd_loopcheck tools/bd_loopcheck.cpp)
 target_link_libraries(bd_loopcheck bdhost)
 
+add_executable(bd_xdma tools/bd_xdma.cpp)   # XDMA user-BAR register access (Linux)
+
 add_executable(bd_selftest tests/selftest.cpp)
 target_link_libraries(bd_selftest bdhost)
 

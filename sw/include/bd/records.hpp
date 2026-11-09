@@ -1,4 +1,4 @@
-// Collector record format (docs/REGISTERS.md section 3): 8 little-endian
+// Collector record format (docs/REGISTERS.md section 5): 8 little-endian
 // 32-bit words per record; word 0 = [31:28] type, [27:16] channel, [15:0] epoch.
 #pragma once
 
@@ -12,7 +12,8 @@ namespace bd {
 constexpr std::size_t kRecordWords = 8;
 constexpr std::size_t kRecordBytes = kRecordWords * 4;
 
-enum class RecordType : uint8_t { Dump = 1, Meas = 2 };
+// Type 0 is the PCIe pad record (bd_host_if packet flush); parse_stream skips it.
+enum class RecordType : uint8_t { Pad = 0, Dump = 1, Meas = 2 };
 
 struct Dump {
     uint16_t channel;
@@ -39,7 +40,8 @@ struct Record {
 // Parses one record. Returns false for an unknown type.
 bool parse_record(const std::array<uint32_t, kRecordWords>& w, Record& out);
 
-// Parses a DMA buffer of back-to-back records; trailing partial bytes are ignored.
+// Parses a DMA buffer of back-to-back records; pad records and trailing partial bytes are
+// skipped.
 std::vector<Record> parse_stream(const uint8_t* data, std::size_t len);
 
 }  // namespace bd
