@@ -4,7 +4,7 @@ A SignalSpec says everything the receiver chain needs about one signal
 component: its primary code, chip rate, carrier, subcarrier, secondary
 (overlay) code and whether it carries data.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from typing import Callable, Optional
 
@@ -15,6 +15,7 @@ from . import bds_b1i as b1i
 from . import bds_b2a as b2a
 from . import galileo as gal
 from . import glonass as glo
+from . import navic
 from . import gps_l1c as l1c
 from . import gps_l2c as l2c
 from .gps_ca import CA_CHIP_RATE, CA_LEN, L1_FREQ, ca_code
@@ -72,6 +73,25 @@ GPS_L2CM = SignalSpec("GPS L2 CM", lambda p: l2c.l2c_code(p, "M"), l2c.CM_LEN, l
                       l2c.L2_FREQ, tdm_slot=0)
 GPS_L2CL = SignalSpec("GPS L2 CL", lambda p: l2c.l2c_code(p, "L"), l2c.CL_LEN, l2c.L2C_CHIP_RATE,
                       l2c.L2_FREQ, tdm_slot=1, pilot=True)
+
+# SBAS L1 (PRN 120-158): C/A codes from IS-GPS-200N Table 6-I; 500 sps = 2 epochs/symbol
+# (see sbas.py). Data is not a secondary code, so the spec is the plain C/A one.
+SBAS_L1 = SignalSpec("SBAS L1", ca_code, CA_LEN, CA_CHIP_RATE, L1_FREQ)
+
+# QZSS (PRN 193-202) on the GPS signal designs; codes from the GPS ICDs' additional
+# tables (see qzss.py). Separate names keep separate code caches and readable logs.
+QZSS_L1CA = replace(GPS_L1CA, name="QZSS L1 C/A")
+QZSS_L1CP = replace(GPS_L1CP, name="QZSS L1CP")
+QZSS_L1CD = replace(GPS_L1CD, name="QZSS L1CD")
+QZSS_L2CM = replace(GPS_L2CM, name="QZSS L2 CM")
+QZSS_L2CL = replace(GPS_L2CL, name="QZSS L2 CL")
+QZSS_L5I = replace(GPS_L5I, name="QZSS L5-I")
+QZSS_L5Q = replace(GPS_L5Q, name="QZSS L5-Q")
+
+# NavIC L5 SPS (ISRO-IRNSS-ICD-SPS-1.1): BPSK(1), 50 sps = 20 epochs/symbol. The code
+# table is generated locally from the user's copy of the ICD (navic.py).
+NAVIC_L5 = SignalSpec("NavIC L5 SPS", navic.l5_code, navic.NAVIC_LEN, navic.NAVIC_CHIP_RATE,
+                      navic.NAVIC_L5_FREQ)
 
 # BeiDou B1I (BDS-SIS-ICD-B1I-3.0): NH20 on MEO/IGSO (D1, 50 bps); GEO (D2, 500 bps) has none.
 BDS_B1I = SignalSpec("BDS B1I", b1i.b1i_code, b1i.B1I_LEN, b1i.B1I_CHIP_RATE, b1i.B1I_FREQ,

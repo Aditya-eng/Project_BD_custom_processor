@@ -1,4 +1,9 @@
-"""GPS L1 C/A Gold code generator (IS-GPS-200, Table 3-Ia).
+"""GPS L1 C/A Gold code generator (IS-GPS-200N).
+
+PRN 1-32 use the two-tap G2 phase selector of Table 3-Ia. PRN 64-210 (Table 6-I:
+SBAS 120-158, QZSS L1 C/A 193-202 and others) use the G2 delay method; their table is
+imported from the PDF by tools/import_is200_ca.py. PRN 33-63 (Table 3-Ib) are not
+imported yet.
 
 Chip convention used throughout Project BD: logic 0 -> +1, logic 1 -> -1.
 """
@@ -19,8 +24,41 @@ G2_TAPS = {
 }
 
 
+def _lfsr_outputs(g2_init):
+    """G1 and G2 output sequences (stage 10), G1 from all ones, G2 from `g2_init`
+    (10 bits, stage 10 first)."""
+    g1 = [1] * 10
+    g2 = list(reversed(g2_init))          # g2[i] is stage i+1
+    a = np.empty(CA_LEN, dtype=np.uint8)
+    b = np.empty(CA_LEN, dtype=np.uint8)
+    for i in range(CA_LEN):
+        a[i], b[i] = g1[9], g2[9]
+        f1 = g1[2] ^ g1[9]
+        f2 = g2[1] ^ g2[2] ^ g2[5] ^ g2[7] ^ g2[8] ^ g2[9]
+        g1 = [f1] + g1[:9]
+        g2 = [f2] + g2[:9]
+    return a, b
+
+
+_G1, _G2 = _lfsr_outputs([1] * 10)
+
+
+def ca_code_from_delay(delay: int) -> np.ndarray:
+    """G1 xor (G2 delayed by `delay` chips), both registers started at all ones."""
+    return _G1 ^ np.roll(_G2, delay)
+
+
+def ca_code_from_g2_init(g2_init) -> np.ndarray:
+    """G1 (all ones) xor G2 started at the 10-bit state `g2_init`, stage 10 first."""
+    a, b = _lfsr_outputs(list(g2_init))
+    return a ^ b
+
+
 def ca_code(prn: int) -> np.ndarray:
     """Return the 1023-chip C/A code for `prn` as uint8 logic values (0/1)."""
+    if 64 <= prn <= 210:
+        from .tables.gps_ca_ext_table import CA_EXT
+        return ca_code_from_delay(CA_EXT[prn][0])
     t1, t2 = G2_TAPS[prn]
     g1 = [1] * 10
     g2 = [1] * 10

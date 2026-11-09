@@ -57,7 +57,14 @@ def overlay_bits(poly: int, init: str, n: int = OVERLAY_LEN) -> list:
     return s[:n]
 
 
+S2_POLY = 0o5001   # IS-GPS-800J 6.3.1.2: fixed S2 of the additional (PRN 64-210) overlays
+
+
 def l1co_overlay(prn: int) -> tuple:
+    if prn >= 64:
+        from .tables.gps_l1c_table import L1CO_EXT
+        poly, s1, s2, _, _ = L1CO_EXT[prn]
+        return tuple(a ^ b for a, b in zip(overlay_bits(poly, s1), overlay_bits(S2_POLY, s2)))
     from .tables.gps_l1c_table import L1CO
     poly, init, _ = L1CO[prn]
     return tuple(overlay_bits(poly, init))

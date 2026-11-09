@@ -77,11 +77,15 @@ Every code generator is checked against the official ICD by an importer in [`too
 | BeiDou | B1C (pilot + data) | BDS-SIS-ICD-B1C 1.0: 126 codes, 63 secondaries | yes (QMBOC as broadcast) | symbols only |
 | BeiDou | B2a (pilot + data) | BDS-SIS-ICD-B2a 1.0: 126 codes, 63 secondaries | yes | symbols only |
 | GLONASS | G1 (FDMA) | ICD 5.1: code, time mark, frequency table | yes, several FDMA channels in one stream | strings to the bit level |
-| QZSS, SBAS, NavIC | L1/L2C/L5, L1, L5 | **not yet** | — | — |
+| QZSS | L1 C/A, L1C, L2C, L5 (PRN 193–202) | the GPS ICDs' additional tables: IS-GPS-200N 6-I and 6-II, IS-GPS-800J 6.3-1/6.3-2, IS-GPS-705J 6-II (all 147 rows each, cross-checked) | L1 C/A yes; L1C overlay sync on synthetic prompts; L5/L2C as GPS | symbols only |
+| SBAS | L1 (PRN 120–158) | IS-GPS-200N Table 6-I: G2 delay, initial G2 state and first chips agree for every row; Gold family with GPS | yes, GEO at 500 sps (2 ms symbols) | symbols only (no Viterbi or MOPS messages yet) |
+| NavIC | L5 SPS | ISRO-IRNSS-ICD-SPS-1.1 Table 7: first 10 chips of all 14 PRNs (L5 and S). **The table is generated locally from your own copy of the ICD and is not in the repo** (ISRO's no-copy terms) | yes (skipped in CI, which has no table) | symbols only |
 
 Two ICD inconsistencies were found and handled explicitly (see [`docs/LICENSES.md`](docs/LICENSES.md)):
 - **IS-GPS-800J** prints PRN 38 as "3".
 - **BDS-SIS-ICD-B2a** says data and pilot use the same register value, but its tables differ for PRN 61–63.
+
+QZSS's use of PRN 193–202 is from its own specification (IS-QZSS-PNT), which has not been read yet: its download page asks the reader to accept a disclaimer first. The GPS ICDs define the codes but not which system uses them. QZSS-only signals (L1S, L5S, L6) are not covered.
 
 ## 4. FPGA design
 
@@ -159,6 +163,8 @@ make estimate    # optional: Yosys 7-series resource estimate (needs yosys)
 ```
 
 CI runs `make test` on every push and pull request.
+
+NavIC: the ISRO ICD may not be copied, so its code table is not in the repo. To enable NavIC locally, run `python3 tools/import_navic.py <your copy of ISRO-IRNSS-ICD-SPS-1.1.pdf>` (needs `pdftotext`). It writes a git-ignored table, and the NavIC tests then run instead of being skipped.
 
 ## 10. Building for the VC709
 
